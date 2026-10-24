@@ -1,5 +1,108 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+## Authentication setup
+
+Authentication uses Supabase email/password auth with cookie-based sessions.
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in
+`.env.local`. Do not use a Supabase service-role key in the browser.
+
+In your Supabase project:
+
+1. Enable email confirmations under **Authentication → Providers → Email**.
+2. Set the site URL to your app's origin, such as `http://localhost:3000`.
+3. Add each app origin's `/auth/callback` URL to the allowed redirect URLs. For
+   local development, add `http://localhost:3000/auth/callback`; add the
+   production URL when deploying.
+
+The app provides `/login`, `/register`, `/forgot-password`, and
+`/reset-password`. Email verification and password reset links return through
+`/auth/callback`. After sign-in, users are directed to `/dashboard`, admins to
+`/admin/dashboard`, and superadmins to `/superadmin/dashboard` based on
+`profiles.role`.
+
+The profile table and signup trigger are defined in
+[`supabase/migrations/20261015150600_create_profiles.sql`](./supabase/migrations/20261015150600_create_profiles.sql).
+Run the migration in the Supabase SQL Editor, or apply it with
+`npx supabase db push` after initializing and linking the Supabase CLI. It
+creates a profile row for new users and backfills existing users; row-level
+security restricts profile access to the owning user.
+
+## Public site and event listings
+
+The guest landing page uses KURO branding and reads public events from Supabase.
+Apply `supabase/migrations/20261015150800_create_public_events.sql` after the
+profile and role migrations. It creates organizations and events with row-level
+security; only published future events are visible to guests. No event records
+are seeded, so the public event sections show an empty state until event
+publishing is available and real records have been added.
+
+The feature, AI, integrations, pricing, and resource sections are product
+previews. AI, payments, newsletter subscriptions, registration/check-in, and
+paid checkout are not active in the current app.
+
+Apply `supabase/migrations/20261016100000_record_policy_consent.sql` after the
+profile migration to store the Terms and Privacy policy versions and acceptance
+timestamps on newly created profiles. The linked policies are preview drafts;
+have them reviewed and finalized by the KURO operator and legal counsel before
+production signup.
+
+## Route areas and roles
+
+Route groups keep public URLs stable while organizing landing and event pages,
+authentication, user pages, organization administration, and platform
+administration. Organization-admin pages remain scaffolds. Access checks run
+in the protected server layouts; `src/proxy.js` refreshes Supabase sessions.
+
+Apply `supabase/migrations/20261015150700_add_profile_roles.sql` after the
+profile migration. New accounts receive the `user` role. To grant administrative
+access, update a profile's role from a trusted Supabase SQL session; role changes
+are intentionally not available through the user-facing profile API. Allowed
+roles are `user`, `admin`, and `superadmin`.
+
+## Attendee workspace
+
+Apply `supabase/migrations/20261016110000_create_attendee_portal.sql` after the
+profile, role, policy-consent, and public-event migrations. It extends attendee
+profiles and creates owner-scoped registrations, attendance, certificates,
+favorites, notifications, reviews, settings, support requests, and organizer
+applications. It also adds the public, limited-field certificate verification
+function. Row-level security restricts attendee records to their owner.
+
+The attendee workspace includes a data-backed dashboard, profile and settings
+forms, free-event registration and cancellation, tickets, event history and CSV
+export, certificates, favorites, notifications, support requests, and organizer
+applications. Paid checkout, QR scanning, ticket PDFs and wallet passes,
+outbound notification delivery, organizer approval, direct messaging, and
+attendee-to-organizer certificate issuance require workflows or integrations
+that are not part of this preview. The app reports these limitations rather
+than presenting them as completed actions.
+
+## Superadmin console
+
+Apply `supabase/migrations/20261016130000_create_superadmin_console.sql` after
+the attendee-portal migration and refresh the Supabase API schema cache. The
+console is available at `/superadmin` and includes role-protected organization,
+application, user, event, support, analytics, broadcast, audit, settings,
+feature-flag, content, and task screens. The migration adds superadmin-only
+row-level security policies and guarded database functions; do not grant
+superadmin roles to untrusted accounts.
+
+Organizer approval creates an organization, assigns its owner, promotes the
+applicant to admin, and adds an in-app notification. User role changes cannot
+create additional superadmins or modify the current superadmin account.
+Suspended/banned accounts are blocked from protected pages and app server
+actions. Organization suspension hides its events from public event listings.
+
+Plan labels, feature flags, platform settings, content, and in-app broadcasts
+are stored by KURO, but are not a substitute for the respective runtime
+integrations. There is no payment ledger, subscription processor, outbound
+email/SMS provider, impersonation, forced logout, IP firewall, uptime
+telemetry, backup control, or job queue in this project. The console marks
+these capabilities unavailable rather than fabricating status or financial
+metrics. Published content is saved but is not yet wired into the public site;
+maintenance mode and feature flags likewise require explicit runtime gates
+before they affect other routes.
+
 ## Getting Started
 
 First, run the development server:

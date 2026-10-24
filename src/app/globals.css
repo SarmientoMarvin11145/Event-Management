@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f7f2;
+  --foreground: #193532;
 }
 
 @theme inline {
@@ -12,15 +12,131 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html.scroll-reveal-ready [data-scroll-reveal][data-reveal-state="pending"] {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+}
+
+html.scroll-reveal-ready [data-scroll-reveal="left"][data-reveal-state="pending"] {
+  transform: translate3d(-24px, 0, 0);
+}
+
+html.scroll-reveal-ready [data-scroll-reveal="right"][data-reveal-state="pending"] {
+  transform: translate3d(24px, 0, 0);
+}
+
+html.scroll-reveal-ready [data-scroll-reveal][data-reveal-state="visible"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 650ms ease-out var(--scroll-delay, 0ms),
+    transform 650ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--scroll-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  [data-scroll-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+html[data-theme="dark"] body {
+  background: #050505;
+  color: #f2f2f2;
+}
+
+html[data-theme="dark"] .kuro-page {
+  background: #080808 !important;
+  color: #f2f2f2 !important;
+}
+
+html[data-theme="dark"] .kuro-page :is(.bg-white, .bg-slate-50, .bg-gray-50) {
+  background-color: #121212 !important;
+}
+
+html[data-theme="dark"] .kuro-page :is(.border-slate-200, .border-slate-300, .border-gray-200) {
+  border-color: #333 !important;
+}
+
+html[data-theme="dark"] .kuro-page :is(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400) {
+  color: #d4d4d4 !important;
+}
+
+html[data-theme="dark"] .kuro-page nav a:hover {
+  background-color: #292929 !important;
+  color: #ffcf72 !important;
+}
+
+html[data-theme="dark"] .kuro-soft,
+html[data-theme="dark"] .kuro-nav {
+  background: #121212 !important;
+  color: #f2f2f2 !important;
+}
+
+html[data-theme="dark"] .kuro-band,
+html[data-theme="dark"] .kuro-footer {
+  background: #050505 !important;
+  color: #f2f2f2 !important;
+}
+
+html[data-theme="dark"] .kuro-panel,
+html[data-theme="dark"] .kuro-input {
+  background-color: #1c1c1c !important;
+  border-color: #3d3d3d !important;
+  color: #f2f2f2 !important;
+}
+
+html[data-theme="dark"] .kuro-page :is(h1, h2, h3, p, span, li, summary),
+html[data-theme="dark"] .kuro-soft :is(h1, h2, h3, p, span, li, summary),
+html[data-theme="dark"] .kuro-panel :is(h1, h2, h3, p, span, li, summary),
+html[data-theme="dark"] .kuro-nav :is(a, summary, select) {
+  color: #f2f2f2 !important;
+}
+
+html[data-theme="dark"] .kuro-page :is(a, button):hover,
+html[data-theme="dark"] .kuro-soft :is(a, button):hover,
+html[data-theme="dark"] .kuro-panel :is(a, button):hover {
+  color: #ffcf72 !important;
+}
+
+html[data-theme="dark"] .kuro-page .kuro-nav-control:hover,
+html[data-theme="dark"] .kuro-page .kuro-menu-link:hover {
+  background-color: #292929 !important;
+  color: #ffcf72 !important;
+}
+
+html[data-theme="dark"] .kuro-nav {
+  border-color: #333 !important;
+}
+
+html[data-theme="dark"] .kuro-nav button,
+html[data-theme="dark"] .kuro-nav input,
+html[data-theme="dark"] .kuro-nav select {
+  border-color: #3d3d3d !important;
+  background-color: #1c1c1c !important;
+  color: #f2f2f2 !important;
+}
+
+html[data-theme="dark"] .kuro-nav input::placeholder,
+html[data-theme="dark"] .kuro-input::placeholder {
+  color: #a3a3a3 !important;
+}
+
+html[data-theme="dark"] .kuro-band :is(h1, h2, h3, p, span, li, summary) {
+  color: #f2f2f2 !important;
 }
