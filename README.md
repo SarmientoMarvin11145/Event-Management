@@ -32,13 +32,16 @@ security restricts profile access to the owning user.
 The guest landing page uses KURO branding and reads public events from Supabase.
 Apply `supabase/migrations/20261015150800_create_public_events.sql` after the
 profile and role migrations. It creates organizations and events with row-level
-security; only published future events are visible to guests. No event records
-are seeded, so the public event sections show an empty state until event
-publishing is available and real records have been added.
+security; only published future events are visible to guests. The
+`20261024200000_add_paymongo_test_event.sql` migration adds one published
+PayMongo test webinar so it appears in the welcome-page event feed after
+`supabase db push`.
 
 The feature, AI, integrations, pricing, and resource sections are product
-previews. AI, payments, newsletter subscriptions, registration/check-in, and
-paid checkout are not active in the current app.
+previews. PayMongo test-mode checkout is available for paid event tickets and
+organization plans after applying the payment migration and configuring its
+server-only credentials. Automatic recurring billing, refunds, and live
+payments are not enabled.
 
 Apply `supabase/migrations/20261016100000_record_policy_consent.sql` after the
 profile migration to store the Terms and Privacy policy versions and acceptance
@@ -71,11 +74,48 @@ function. Row-level security restricts attendee records to their owner.
 The attendee workspace includes a data-backed dashboard, profile and settings
 forms, free-event registration and cancellation, tickets, event history and CSV
 export, certificates, favorites, notifications, support requests, and organizer
-applications. Paid checkout, QR scanning, ticket PDFs and wallet passes,
+applications. PayMongo test checkout can issue one ticket per attendee and event;
+seat selection and multi-ticket orders are not implemented. QR scanning, ticket PDFs and wallet passes,
 outbound notification delivery, organizer approval, direct messaging, and
 attendee-to-organizer certificate issuance require workflows or integrations
 that are not part of this preview. The app reports these limitations rather
 than presenting them as completed actions.
+
+## PayMongo test checkout
+
+Apply `supabase/migrations/20261024190000_add_paymongo_payments.sql` after the
+attendee-portal, superadmin-console, and feature-flag migrations, then refresh
+the Supabase API schema cache. Configure these server-only environment variables
+(never use a `NEXT_PUBLIC_` prefix for these values):
+
+- `PAYMONGO_SECRET_KEY`: a PayMongo test secret key (`sk_test_...`); live keys
+  are rejected by the checkout endpoint.
+- `PAYMONGO_WEBHOOK_SECRET`: the signing secret for a PayMongo test webhook.
+- `SUPABASE_SERVICE_ROLE_KEY`: the Supabase service-role key, used only by the
+  server checkout and signed webhook handlers. Never expose it to the browser.
+- `CRON_SECRET`: a random bearer token for the protected pending-checkout
+  cleanup endpoint.
+
+In the PayMongo test dashboard, configure a webhook at
+`https://<your-app-origin>/api/payments/webhook` and subscribe to
+`checkout_session.payment.paid`. The webhook signature is verified before a
+registration is confirmed or an organization plan is updated. Event ticket
+payments and KURO plans currently use the same platform PayMongo test account;
+admin plan purchases are one-time monthly checkouts with manual renewal, not
+automatic recurring billing. Paid plans are recorded with a one-month expiry,
+but expiry does not yet enforce plan-based feature access. Superadmins can
+review the recent payment ledger under **Revenue**; raw credentials are never
+displayed there. Configure an hourly external scheduler to `POST
+/api/payments/expire-pending` with an `Authorization: Bearer` header containing
+the configured `CRON_SECRET`; it expires sessions older than 24 hours with
+PayMongo before releasing reserved event capacity.
+
+For local development, `supabase db reset` also runs the configured
+`supabase/seed.sql`. Both the migration and seed create the same idempotent
+**PayMongo Test Webinar** at `/e/paymongo-test-webinar` for PHP 50, scheduled
+three days ahead. The migration publishes this test listing in any project that
+applies it; remove the sample event before production use if it should not be
+public.
 
 ## Superadmin console
 

@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { addFavorite, registerForEvent } from "@/app/(user)/actions";
 
 export default function PublicEventDetails({ slug }) {
+  const router = useRouter();
   const [event, setEvent] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -15,7 +19,7 @@ export default function PublicEventDetails({ slug }) {
     async function loadEvent() {
       const { data, error } = await supabase
         .from("events")
-        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, organizations(name, logo_url)")
+        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, organizations(name, logo_url)")
         .eq("slug", slug)
         .eq("status", "published")
         .maybeSingle();
@@ -64,6 +68,29 @@ export default function PublicEventDetails({ slug }) {
     dateStyle: "full",
     timeStyle: "short",
   }).format(new Date(event.start_date));
+  const ticketPrice = Number(event.ticket_price || 0);
+
+  async function startCheckout() {
+    setCheckoutPending(true);
+    setCheckoutError("");
+    try {
+      const response = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "event_ticket", eventId: event.id }),
+      });
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not start checkout.");
+      window.location.assign(result.checkoutUrl);
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Could not start checkout.");
+      setCheckoutPending(false);
+    }
+  }
 
   return (
     <main className="kuro-page min-h-[70vh] bg-[#fbfcf8] text-[#173d39]">
@@ -82,11 +109,31 @@ export default function PublicEventDetails({ slug }) {
         </div>
         <aside className="kuro-panel h-fit rounded-md border border-[#dce4dc] bg-white p-5">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#d6533d]">Event details</p>
+          {ticketPrice > 0 && (
+            <p className="mt-3 text-lg font-bold text-[#173d39]">
+              {new Intl.NumberFormat("en-PH", { style: "currency", currency: event.currency || "PHP" }).format(ticketPrice)}
+              <span className="ml-1 text-xs font-medium text-[#61736e]">per attendee</span>
+            </p>
+          )}
           {new Date(event.start_date) > new Date() ? (
-            <form action={registerForEvent} className="mt-4">
-              <input name="event_id" type="hidden" value={event.id} />
-              <button className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37]" type="submit">Register</button>
-            </form>
+            ticketPrice > 0 ? (
+              <div className="mt-4">
+                {event.currency === "PHP" ? (
+                  <button className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37] disabled:cursor-wait disabled:opacity-60" disabled={checkoutPending} onClick={startCheckout} type="button">
+                    {checkoutPending ? "Opening secure checkout..." : "Buy ticket"}
+                  </button>
+                ) : (
+                  <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">Online checkout is currently available for PHP-priced events only.</p>
+                )}
+                {checkoutError && <p className="mt-2 text-sm text-rose-700" role="alert">{checkoutError}</p>}
+                <p className="mt-2 text-xs leading-5 text-[#61736e]">Secure test-mode checkout by PayMongo. Your ticket is confirmed after payment verification.</p>
+              </div>
+            ) : (
+              <form action={registerForEvent} className="mt-4">
+                <input name="event_id" type="hidden" value={event.id} />
+                <button className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37]" type="submit">Register for free</button>
+              </form>
+            )
           ) : (
             <p className="mt-2 text-sm text-[#61736e]">Registration is not available for this event.</p>
           )}

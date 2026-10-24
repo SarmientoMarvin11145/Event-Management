@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { translate, useLocale } from "@/lib/locale";
@@ -48,7 +49,7 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, title, slug, description, banner_url, start_date, venue_name, city, organizations(name, logo_url)",
+          "id, title, slug, description, banner_url, start_date, venue_name, city, ticket_price, currency, organizations(name, logo_url)",
         )
         .eq("status", "published")
         .gte("start_date", new Date().toISOString())
@@ -181,8 +182,11 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
 }
 
 function EventCard({ event }) {
+  const router = useRouter();
   const locale = useLocale();
   const text = (value) => translate(locale, value);
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
   const organization = Array.isArray(event.organizations)
     ? event.organizations[0]
     : event.organizations;
@@ -192,6 +196,29 @@ function EventCard({ event }) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(eventDate);
+  const ticketPrice = Number(event.ticket_price || 0);
+
+  async function startCheckout() {
+    setCheckoutPending(true);
+    setCheckoutError("");
+    try {
+      const response = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "event_ticket", eventId: event.id }),
+      });
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not start checkout.");
+      window.location.assign(result.checkoutUrl);
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Could not start checkout.");
+      setCheckoutPending(false);
+    }
+  }
 
   return (
     <article className="kuro-panel overflow-hidden rounded-md border border-[#dce4dc] bg-white" data-scroll-reveal="up">
@@ -233,10 +260,34 @@ function EventCard({ event }) {
       </Link>
       <div className="flex flex-wrap gap-2 px-5 pb-5">
         {eventDate > new Date() && (
-          <form action={registerForEvent}>
-            <input name="event_id" type="hidden" value={event.id} />
-            <button className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" type="submit">{text("Register")}</button>
-          </form>
+          ticketPrice > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-[#173d39]">
+                {new Intl.NumberFormat(dateLocales[locale], {
+                  style: "currency",
+                  currency: event.currency || "PHP",
+                }).format(ticketPrice)}
+              </span>
+              {event.currency === "PHP" ? (
+                <button
+                  className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37] disabled:cursor-wait disabled:opacity-60"
+                  disabled={checkoutPending}
+                  onClick={startCheckout}
+                  type="button"
+                >
+                  {checkoutPending ? text("Opening secure checkout...") : text("Buy ticket")}
+                </button>
+              ) : (
+                <span className="text-xs text-amber-800">{text("Online checkout is available for PHP events only.")}</span>
+              )}
+              {checkoutError && <p className="basis-full text-xs text-rose-700" role="alert">{checkoutError}</p>}
+            </div>
+          ) : (
+            <form action={registerForEvent}>
+              <input name="event_id" type="hidden" value={event.id} />
+              <button className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" type="submit">{text("Register")}</button>
+            </form>
+          )
         )}
         <form action={addFavorite}>
           <input name="event_id" type="hidden" value={event.id} />

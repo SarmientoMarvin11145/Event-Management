@@ -13,6 +13,7 @@ const links = [
   { href: "/admin/staff", label: "Staff" },
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/billing", label: "Billing" },
   { href: "/admin/settings", label: "Settings" },
 ];
 
@@ -23,6 +24,7 @@ const linkFlags = {
   "/admin/staff": "admin-staff",
   "/admin/venues": "admin-venues",
   "/admin/reports": "admin-reports",
+  "/admin/billing": "payment-gateway",
   "/admin/settings": "admin-settings",
 };
 

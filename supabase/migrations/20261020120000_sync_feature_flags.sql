@@ -122,11 +122,11 @@ declare
     'user-profile',
     'user-settings'
   ];
-  flag_key text;
+  v_flag_key text;
 begin
-  foreach flag_key in array flag_keys loop
+  foreach v_flag_key in array flag_keys loop
     insert into public.feature_flags (flag_key, label, description, enabled)
-    values (flag_key, flag_labels ->> flag_key, flag_descriptions ->> flag_key, flag_key = any(enabled_by_default))
+    values (v_flag_key, flag_labels ->> v_flag_key, flag_descriptions ->> v_flag_key, v_flag_key = any(enabled_by_default))
     on conflict (flag_key) do update
       set label = excluded.label,
           description = excluded.description;

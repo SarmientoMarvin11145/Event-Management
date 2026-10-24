@@ -31,7 +31,7 @@ export const FEATURE_DEFINITIONS = [
   { key: "seating-plans", label: "Seating plans", description: "Seating plan workflows.", scope: "admin", defaultEnabled: false },
   { key: "booth-management", label: "Booth management", description: "Exhibitor and booth workflows.", scope: "admin", defaultEnabled: false },
   { key: "facial-check-in", label: "Facial check-in", description: "Requires privacy review.", scope: "admin", defaultEnabled: false },
-  { key: "payment-gateway", label: "Paid checkout", description: "No payment provider connected.", scope: "shared", defaultEnabled: false },
+  { key: "payment-gateway", label: "Paid checkout", description: "PayMongo test-mode checkout for event tickets and organization plans.", scope: "shared", defaultEnabled: true },
   { key: "offline-mode", label: "Offline mode", description: "Offline event operations.", scope: "shared", defaultEnabled: false },
   { key: "advanced-analytics", label: "Advanced analytics", description: "Organization analytics.", scope: "admin", defaultEnabled: false },
 ];
