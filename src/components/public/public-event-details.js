@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { addFavorite, registerForEvent } from "@/app/(user)/actions";
+import EventSeatMap from "@/components/public/event-seat-map";
 
 export default function PublicEventDetails({ slug }) {
   const [event, setEvent] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [seatMapState, setSeatMapState] = useState({ eventId: null, data: null, status: "idle" });
 
   useEffect(() => {
     let active = true;
@@ -15,7 +17,7 @@ export default function PublicEventDetails({ slug }) {
     async function loadEvent() {
       const { data, error } = await supabase
         .from("events")
-        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, organizations(name, logo_url)")
+        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)")
         .eq("slug", slug)
         .eq("status", "published")
         .maybeSingle();
@@ -39,6 +41,28 @@ export default function PublicEventDetails({ slug }) {
       active = false;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (!event?.venue_id) return;
+
+    let active = true;
+    supabase.rpc("get_event_seat_map", { p_event_id: event.id }).then(({ data, error }) => {
+      if (!active) return;
+      setSeatMapState({
+        eventId: event.id,
+        data: data || null,
+        status: error || !data ? "unavailable" : "ready",
+      });
+    }).catch((error) => {
+      if (!active) return;
+      console.error("Unable to load event seat availability.", error);
+      setSeatMapState({ eventId: event.id, data: null, status: "unavailable" });
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [event]);
 
   if (status === "loading") {
     return <main className="min-h-[70vh] px-5 py-20 text-center text-sm text-[#61736e]" role="status">Loading event...</main>;
@@ -64,6 +88,13 @@ export default function PublicEventDetails({ slug }) {
     dateStyle: "full",
     timeStyle: "short",
   }).format(new Date(event.start_date));
+  const seatMapStatus = event.venue_id
+    ? seatMapState.eventId === event.id ? seatMapState.status : "loading"
+    : "idle";
+  const seatMap = seatMapState.eventId === event.id ? seatMapState.data : null;
+  const registrationAvailable = new Date(event.start_date) > new Date()
+    && (!event.registration_opens_at || new Date(event.registration_opens_at) <= new Date())
+    && (!event.registration_deadline || new Date(event.registration_deadline) >= new Date());
 
   return (
     <main className="kuro-page min-h-[70vh] bg-[#fbfcf8] text-[#173d39]">
@@ -82,7 +113,18 @@ export default function PublicEventDetails({ slug }) {
         </div>
         <aside className="kuro-panel h-fit rounded-md border border-[#dce4dc] bg-white p-5">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#d6533d]">Event details</p>
-          {new Date(event.start_date) > new Date() ? (
+          {Number(event.ticket_price) > 0 && (
+            <p className="mt-3 text-sm font-semibold text-[#173d39]">
+              {new Intl.NumberFormat("en-PH", { style: "currency", currency: event.currency || "PHP" }).format(Number(event.ticket_price))}
+            </p>
+          )}
+          {event.venue_id ? (
+            <EventSeatMap event={event} seatMap={seatMap} status={seatMapStatus} />
+          ) : Number(event.ticket_price) > 0 ? (
+            <p className="mt-4 rounded-md bg-amber-50 p-3 text-sm leading-5 text-amber-900">
+              Paid checkout is not configured yet. Registration is unavailable for this paid event.
+            </p>
+          ) : registrationAvailable ? (
             <form action={registerForEvent} className="mt-4">
               <input name="event_id" type="hidden" value={event.id} />
               <button className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37]" type="submit">Register</button>

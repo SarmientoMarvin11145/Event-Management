@@ -12,7 +12,7 @@ const mobileLinks = [
   { href: "/profile", label: "Profile", icon: "◉" },
 ];
 
-export default function WorkspaceShell({ title, links, children, initialTheme = "system", initialLocale = "en", notifications = [], userWorkspace = false }) {
+export default function WorkspaceShell({ title, links, children, initialTheme = "system", initialLocale = "en", notifications = [], profileName, profileRole, userWorkspace = false }) {
   return (
     <div className={userWorkspace ? "kuro-page min-h-screen bg-[#f6f7f2] text-[#193532]" : "kuro-page min-h-screen bg-slate-50"}>
       <ThemeSync locale={userWorkspace ? initialLocale : undefined} theme={initialTheme} />
@@ -30,6 +30,11 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
           <div className="flex items-center gap-3">
             {userWorkspace && (
               <>
+                {links.some(({ href }) => href === "/admin/dashboard") && (
+                  <Link className="kuro-nav-control rounded-md border border-[#dce4dc] px-3 py-2 text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]" href="/admin/dashboard">
+                    Admin workspace
+                  </Link>
+                )}
                 <form action="/events" className="hidden w-56 md:flex" role="search">
                   <label className="sr-only" htmlFor="workspace-search">Search events</label>
                   <input className="kuro-input min-w-0 flex-1 rounded-l-md border border-[#cbd8d1] bg-white px-3 py-2 text-sm" id="workspace-search" name="q" placeholder="Search events..." type="search" />
@@ -41,6 +46,24 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                   <summary className="kuro-nav-control cursor-pointer list-none rounded-md border border-[#dce4dc] px-3 py-2 text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]">Account ▾</summary>
                   <div className="kuro-panel absolute right-0 z-30 mt-2 grid min-w-48 gap-1 rounded-md border border-[#dce4dc] bg-white p-2 shadow-xl">
                     {[["/profile", "My profile"], ["/my-tickets", "My tickets"], ["/certificates", "Certificates"], ["/settings", "Settings"]].map(([href, label]) => <Link className="kuro-menu-link rounded px-3 py-2 text-sm text-[#526864] hover:bg-[#f4f6f1]" href={href} key={href}>{label}</Link>)}
+                  </div>
+                </details>
+              </>
+            )}
+            {!userWorkspace && (
+              <>
+                <NotificationMenu notifications={notifications} />
+                <details className="relative">
+                  <summary className="kuro-nav-control cursor-pointer list-none rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    {profileName || "Account"} ▾
+                  </summary>
+                  <div className="absolute right-0 z-30 mt-2 grid min-w-52 gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-xl">
+                    <div className="border-b border-slate-100 px-3 py-2">
+                      <p className="truncate text-sm font-bold text-slate-900">{profileName || "Administrator"}</p>
+                      <p className="mt-0.5 text-xs capitalize text-slate-500">{profileRole || "admin"}</p>
+                    </div>
+                    <Link className="rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="/profile">My profile</Link>
+                    <Link className="rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="/dashboard">My workspace</Link>
                   </div>
                 </details>
               </>

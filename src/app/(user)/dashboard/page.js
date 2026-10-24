@@ -34,10 +34,10 @@ async function DashboardContent() {
   const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const [profileResult, registrationsResult, attendanceResult, certificatesResult, eventsResult, notificationsResult, applicationsResult] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, interests, role").eq("id", user.id).maybeSingle(),
-    supabase.from("registrations").select("id, status, registration_code, created_at, events(id, title, start_date, end_date, venue_name, city, banner_url, status, organizations(name, logo_url))").eq("attendee_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("registrations").select("id, status, registration_code, created_at, events(id, title, slug, venue_id, start_date, end_date, venue_name, city, banner_url, status, ticket_price, currency, registration_opens_at, registration_deadline, organizations(name, logo_url))").eq("attendee_id", user.id).order("created_at", { ascending: false }),
     supabase.from("attendance_logs").select("id, registrations!inner(attendee_id)").eq("registrations.attendee_id", user.id),
     supabase.from("certificates").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("events").select("id, title, slug, start_date, venue_name, city, banner_url, status, organizations(name, logo_url)").eq("status", "published").gte("start_date", now.toISOString()).order("start_date").limit(8),
+    supabase.from("events").select("id, title, slug, venue_id, start_date, venue_name, city, banner_url, status, organizations(name, logo_url)").eq("status", "published").gte("start_date", now.toISOString()).order("start_date").limit(8),
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false),
     supabase.from("organizer_applications").select("id, organization_name, status").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1),
   ]);

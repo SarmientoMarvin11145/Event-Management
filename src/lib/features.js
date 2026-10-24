@@ -28,7 +28,7 @@ export const FEATURE_DEFINITIONS = [
   { key: "user-profile", label: "User profile", description: "Editable attendee profile.", scope: "user", defaultEnabled: true },
   { key: "user-settings", label: "User settings", description: "Notification and account settings.", scope: "user", defaultEnabled: true },
   { key: "ai-chatbot", label: "AI attendee support", description: "Floating KURO Assistant chatbot on all pages.", scope: "shared", defaultEnabled: true },
-  { key: "seating-plans", label: "Seating plans", description: "Seating plan workflows.", scope: "admin", defaultEnabled: false },
+  { key: "seating-plans", label: "Seating plans", description: "Venue seat plans and event seat reservations.", scope: "admin", defaultEnabled: true },
   { key: "booth-management", label: "Booth management", description: "Exhibitor and booth workflows.", scope: "admin", defaultEnabled: false },
   { key: "facial-check-in", label: "Facial check-in", description: "Requires privacy review.", scope: "admin", defaultEnabled: false },
   { key: "payment-gateway", label: "Paid checkout", description: "No payment provider connected.", scope: "shared", defaultEnabled: false },

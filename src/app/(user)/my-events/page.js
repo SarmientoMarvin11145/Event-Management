@@ -9,8 +9,8 @@ export default async function MyEventsPage() {
   await requireFeatureEnabled("my-events");
   const { supabase, user } = await getAttendeeSession();
   const [{ data: registrations, error }, { data: favorites, error: favoritesError }] = await Promise.all([
-    supabase.from("registrations").select("id, status, events(id, title, start_date, end_date, venue_name, city, banner_url, status, organizations(name, logo_url))").eq("attendee_id", user.id).order("created_at", { ascending: false }),
-    supabase.from("favorites").select("id, events(id, title, start_date, venue_name, city, banner_url, status, organizations(name, logo_url))").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("registrations").select("id, status, events(id, title, slug, venue_id, start_date, end_date, venue_name, city, banner_url, status, ticket_price, currency, registration_opens_at, registration_deadline, organizations(name, logo_url))").eq("attendee_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("favorites").select("id, events(id, title, slug, venue_id, start_date, venue_name, city, banner_url, status, organizations(name, logo_url))").eq("user_id", user.id).order("created_at", { ascending: false }),
   ]);
   throwOnSupabaseError(error);
   throwOnSupabaseError(favoritesError);

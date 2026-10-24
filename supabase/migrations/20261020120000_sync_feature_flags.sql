@@ -120,7 +120,8 @@ declare
     'favorites',
     'organizer-applications',
     'user-profile',
-    'user-settings'
+    'user-settings',
+    'seating-plans'
   ];
   flag_key text;
 begin

@@ -23,6 +23,8 @@ const links = [
   { href: "/apply-organizer", label: "Apply as organizer" },
 ];
 
+const adminWorkspaceLink = { href: "/admin/dashboard", label: "Admin workspace" };
+
 const linkFlags = {
   "/dashboard": "user-dashboard",
   "/my-tickets": "my-tickets",
@@ -48,9 +50,14 @@ export default function UserLayout({ children }) {
 async function AuthenticatedUserLayout({ children }) {
   const user = await requireAuthenticatedUser(["user", "admin", "superadmin"]);
   const supabase = await createSupabaseServerClient();
-  const [{ data: settings, error: settingsError }, { data: notifications, error: notificationsError }] = await Promise.all([
+  const [
+    { data: settings, error: settingsError },
+    { data: notifications, error: notificationsError },
+    { data: profile, error: profileError },
+  ] = await Promise.all([
     supabase.from("attendee_settings").select("appearance_preferences").eq("user_id", user.id).maybeSingle(),
     supabase.from("notifications").select("id, title, message, link, is_read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
   ]);
   const portalSchemaMissing =
     isMissingTableFromSchemaCache(settingsError, "attendee_settings") ||
@@ -82,10 +89,15 @@ async function AuthenticatedUserLayout({ children }) {
   }
   throwOnSupabaseError(settingsError);
   throwOnSupabaseError(notificationsError);
+  throwOnSupabaseError(profileError);
   const theme = settings?.appearance_preferences?.theme || "system";
   const locale = settings?.appearance_preferences?.language || "en";
   const flagMap = await getFeatureFlagMap();
-  const visibleLinks = filterLinksByFlags(links, flagMap, linkFlags);
+  const workspaceLinks = profile?.role === "admin" ? [...links, adminWorkspaceLink] : links;
+  const visibleLinks = filterLinksByFlags(workspaceLinks, flagMap, {
+    ...linkFlags,
+    [adminWorkspaceLink.href]: "admin-overview",
+  });
 
   return (
     <WorkspaceShell initialLocale={locale} initialTheme={theme} links={visibleLinks} notifications={notifications || []} title="My workspace" userWorkspace>

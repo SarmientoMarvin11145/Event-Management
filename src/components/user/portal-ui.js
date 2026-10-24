@@ -53,7 +53,9 @@ export function EventCard({ event: eventValue, registration, favorite = false })
       )}
       <div className="p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-[#d6533d]">{organization?.name || "KURO event"}</p>
-        <h2 className="mt-2 text-lg font-bold leading-snug text-[#173d39]">{event.title}</h2>
+        <h2 className="mt-2 text-lg font-bold leading-snug text-[#173d39]">
+          {event.slug ? <Link href={`/e/${event.slug}`}>{event.title}</Link> : event.title}
+        </h2>
         <p className="mt-2 text-sm text-[#61736e]">{formatEventDate(event.start_date)}</p>
         <p className="mt-1 text-sm text-[#61736e]">{[event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced"}</p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -61,6 +63,8 @@ export function EventCard({ event: eventValue, registration, favorite = false })
             <span className="rounded-md bg-[#edf4eb] px-3 py-2 text-xs font-bold text-[#245c55]">
               {registration.status.replaceAll("_", " ")}
             </span>
+          ) : canRegister && event.venue_id && event.slug ? (
+            <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>Choose a seat</Link>
           ) : canRegister ? (
             <form action={registerForEvent}>
               <input name="event_id" type="hidden" value={event.id} />

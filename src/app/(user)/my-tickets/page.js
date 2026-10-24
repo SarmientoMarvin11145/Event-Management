@@ -49,7 +49,8 @@ export default async function MyTicketsPage({ searchParams }) {
         <div className="space-y-4">
           {filtered.map((ticket) => {
             const event = eventFromRelation(ticket.events);
-            const canCancel = ticket.status === "confirmed" && event && new Date(event.start_date) > now;
+            const canCancel = ["confirmed", "pending", "waitlisted", "invited"].includes(ticket.status)
+              && event && new Date(event.start_date) > now;
             return (
               <Panel className="!p-0" key={ticket.id}>
                 <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_240px] sm:p-6">

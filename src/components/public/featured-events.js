@@ -48,7 +48,7 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, title, slug, description, banner_url, start_date, venue_name, city, organizations(name, logo_url)",
+          "id, title, slug, description, banner_url, start_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)",
         )
         .eq("status", "published")
         .gte("start_date", new Date().toISOString())
@@ -232,7 +232,13 @@ function EventCard({ event }) {
         </div>
       </Link>
       <div className="flex flex-wrap gap-2 px-5 pb-5">
-        {eventDate > new Date() && (
+        {event.venue_id ? (
+          <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>
+            {Number(event.ticket_price) > 0 ? text("View paid seat preview") : text("Choose a seat")}
+          </Link>
+        ) : Number(event.ticket_price) > 0 ? (
+          <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">{text("Paid checkout unavailable")}</span>
+        ) : eventDate > new Date() && (
           <form action={registerForEvent}>
             <input name="event_id" type="hidden" value={event.id} />
             <button className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" type="submit">{text("Register")}</button>

@@ -43,12 +43,16 @@ function requiredText(formData, key, label, maxLength = 200) {
 
 export async function registerForEvent(formData) {
   await requireEnabledFeature("event-registration", "Event registration");
-  const { supabase, user } = await getActionContext();
+  const { supabase } = await getActionContext();
   const eventId = requiredText(formData, "event_id", "Event");
-  const { error } = await supabase.from("registrations").insert({
-    attendee_id: user.id,
-    event_id: eventId,
-  });
+  const seatId = String(formData.get("seat_id") || "").trim();
+  const result = seatId
+    ? await supabase.rpc("register_for_event_with_seat", {
+      p_event_id: eventId,
+      p_seat_id: seatId,
+    })
+    : await supabase.rpc("register_for_event", { p_event_id: eventId });
+  const { error } = result;
   if (error) throw new Error(`Registration failed: ${error.message}`, { cause: error });
   revalidatePath("/dashboard");
   revalidatePath("/my-events");
@@ -65,7 +69,7 @@ export async function cancelRegistration(formData) {
     .update({ status: "cancelled" })
     .eq("id", registrationId)
     .eq("attendee_id", user.id)
-    .eq("status", "confirmed")
+    .in("status", ["confirmed", "pending", "waitlisted", "invited"])
     .select("id")
     .maybeSingle();
   if (error) throw new Error(`Cancellation failed: ${error.message}`, { cause: error });
@@ -199,6 +203,7 @@ export async function markNotificationRead(formData) {
   if (error) throw new Error(`Could not update notification: ${error.message}`, { cause: error });
   revalidatePath("/notifications");
   revalidatePath("/dashboard");
+  revalidatePath("/admin/dashboard");
 }
 
 export async function submitSupportRequest(formData) {

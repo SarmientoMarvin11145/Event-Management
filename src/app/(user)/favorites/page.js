@@ -8,7 +8,7 @@ export const metadata = { title: "Saved events | KURO" };
 export default async function FavoritesPage() {
   await requireFeatureEnabled("favorites");
   const { supabase, user } = await getAttendeeSession();
-  const { data, error } = await supabase.from("favorites").select("id, created_at, events(id, title, slug, start_date, venue_name, city, banner_url, status, organizations(name, logo_url))").eq("user_id", user.id).order("created_at", { ascending: false });
+  const { data, error } = await supabase.from("favorites").select("id, created_at, events(id, title, slug, venue_id, start_date, venue_name, city, banner_url, status, ticket_price, currency, registration_opens_at, registration_deadline, organizations(name, logo_url))").eq("user_id", user.id).order("created_at", { ascending: false });
   throwOnSupabaseError(error);
   const favorites = (data || []).filter((favorite) => favorite.events);
 

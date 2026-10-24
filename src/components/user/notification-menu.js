@@ -18,7 +18,11 @@ export default function NotificationMenu({ notifications = [] }) {
           <ul className="max-h-80 divide-y divide-[#e8eee7] overflow-auto">
             {notifications.map((notification) => (
               <li className="py-3" key={notification.id}>
-                <p className="text-sm font-semibold text-[#173d39]">{notification.title}</p>
+                {notification.link ? (
+                  <Link className="text-sm font-semibold text-[#173d39] hover:underline" href={notification.link}>{notification.title}</Link>
+                ) : (
+                  <p className="text-sm font-semibold text-[#173d39]">{notification.title}</p>
+                )}
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#61736e]">{notification.message}</p>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <span className="text-[10px] text-[#7a8b84]">{new Intl.DateTimeFormat("en-PH", { dateStyle: "medium" }).format(new Date(notification.created_at))}</span>
