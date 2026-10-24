@@ -40,6 +40,9 @@ public event visibility in existing Supabase projects. The
 `20261024200000_add_paymongo_test_event.sql` migration adds one published
 PayMongo test webinar so it appears in the welcome-page event feed after
 `supabase db push`.
+Apply `supabase/migrations/20261024220000_allow_favorites_for_active_events.sql`
+to allow attendees to save events while registration remains open or the event
+has not ended.
 
 The feature, AI, integrations, pricing, and resource sections are product
 previews. PayMongo test-mode checkout is available for paid event tickets and
