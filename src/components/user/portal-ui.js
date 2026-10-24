@@ -40,7 +40,26 @@ export function EventCard({ event: eventValue, registration, favorite = false })
   const event = eventFromRelation(eventValue);
   if (!event) return null;
   const organization = organizationFromRelation(event.organizations);
-  const canRegister = event.status === "published" && new Date(event.start_date) > new Date();
+  const now = new Date().getTime();
+  const startTime = new Date(event.start_date).getTime();
+  const endTime = new Date(event.end_date || startTime + 60 * 60 * 1000).getTime();
+  const registrationOpensAt = event.registration_opens_at
+    ? new Date(event.registration_opens_at).getTime()
+    : null;
+  const registrationDeadline = event.registration_deadline
+    ? new Date(event.registration_deadline).getTime()
+    : null;
+  const registrationWindowOpen = (registrationOpensAt === null || registrationOpensAt <= now)
+    && (registrationDeadline === null || registrationDeadline >= now);
+  const isUpcoming = Number.isFinite(startTime) && startTime > now;
+  const isActive = Number.isFinite(endTime) && endTime >= now;
+  const isPaid = Number(event.ticket_price || 0) > 0;
+  const canRegister = event.status === "published"
+    && isUpcoming
+    && isActive
+    && registrationWindowOpen
+    && !isPaid
+    && !event.venue_id;
 
   return (
     <article className="kuro-panel overflow-hidden rounded-md border border-[#dce4dc] bg-white">
@@ -63,8 +82,10 @@ export function EventCard({ event: eventValue, registration, favorite = false })
             <span className="rounded-md bg-[#edf4eb] px-3 py-2 text-xs font-bold text-[#245c55]">
               {registration.status.replaceAll("_", " ")}
             </span>
-          ) : canRegister && event.venue_id && event.slug ? (
+          ) : event.status === "published" && isUpcoming && isActive && registrationWindowOpen && event.venue_id && event.slug ? (
             <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>Choose a seat</Link>
+          ) : event.status === "published" && isUpcoming && isActive && registrationWindowOpen && isPaid && event.slug ? (
+            <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>{event.currency === "PHP" ? "Buy ticket" : "View event"}</Link>
           ) : canRegister ? (
             <form action={registerForEvent}>
               <input name="event_id" type="hidden" value={event.id} />
