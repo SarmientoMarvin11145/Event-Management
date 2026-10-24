@@ -64,6 +64,17 @@ export async function cancelRegistration(formData) {
   await requireEnabledFeature("my-tickets", "Ticket cancellation");
   const { supabase, user } = await getActionContext();
   const registrationId = requiredText(formData, "registration_id", "Registration");
+  const { data: registration, error: registrationError } = await supabase
+    .from("registrations")
+    .select("id, status, events(ticket_price)")
+    .eq("id", registrationId)
+    .eq("attendee_id", user.id)
+    .maybeSingle();
+  if (registrationError) throw new Error(`Unable to check ticket cancellation: ${registrationError.message}`, { cause: registrationError });
+  const event = Array.isArray(registration?.events) ? registration.events[0] : registration?.events;
+  if (Number(event?.ticket_price || 0) > 0) {
+    throw new Error("Paid tickets cannot be cancelled online because refunds are not integrated. Contact the event organizer.");
+  }
   const { data, error } = await supabase
     .from("registrations")
     .update({ status: "cancelled" })

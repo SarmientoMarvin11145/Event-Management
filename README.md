@@ -32,14 +32,14 @@ security restricts profile access to the owning user.
 The guest landing page uses KURO branding and reads public events from Supabase.
 Apply `supabase/migrations/20261015150800_create_public_events.sql` after the
 profile and role migrations. It creates organizations and events with row-level
-security; only published future events are visible to guests. No event records
-are seeded, so the public event sections show an empty state until event
-publishing is available and real records have been added.
+security; only published future events are visible to guests. The
+`20261024200000_add_paymongo_test_event.sql` migration adds one published
+PayMongo test webinar so it appears in the welcome-page event feed after
+`supabase db push`.
 
 The feature, AI, integrations, pricing, and resource sections are product
-previews. AI, payments, and newsletter subscriptions are not active in the
-current app. Free-event registration and manual administrator check-in are
-available after applying the attendee and organization-admin migrations.
+previews. AI, payments, newsletter subscriptions, registration/check-in, and
+paid checkout are not active in the current app.
 
 Apply `supabase/migrations/20261016100000_record_policy_consent.sql` after the
 profile migration to store the Terms and Privacy policy versions and acceptance
@@ -73,45 +73,12 @@ function. Row-level security restricts attendee records to their owner.
 The attendee workspace includes a data-backed dashboard, profile and settings
 forms, free-event registration and cancellation, tickets, event history and CSV
 export, certificates, favorites, notifications, support requests, and organizer
-applications. Paid checkout, QR scanning, ticket PDFs and wallet passes,
+applications. PayMongo test checkout can issue one ticket per attendee and event;
+seat selection and multi-ticket orders are not implemented. QR scanning, ticket PDFs and wallet passes,
 outbound notification delivery, organizer approval, direct messaging, and
 attendee-to-organizer certificate issuance require workflows or integrations
 that are not part of this preview. The app reports these limitations rather
 than presenting them as completed actions.
-
-## Venue seating
-
-After applying the superadmin console migration described below, apply
-`supabase/migrations/20261024100000_add_venue_seating.sql`. Organization owners can create a venue seat grid,
-block unavailable seats, and assign a venue plan to an upcoming event. Published
-events with a plan show a live seat map; free-event registrations reserve seats
-atomically, and cancelling a registration releases its seat. Paid checkout is
-not configured, so paid event seats can be previewed but are not reserved.
-
-## Organization admin console
-
-After the venue-seating migration, apply
-`supabase/migrations/20261024110000_organization_admin_workflows.sql` and then
-`supabase/migrations/20261024120000_admin_reporting_and_booking_guards.sql`,
-and refresh the Supabase API schema cache. These migrations add organization
-memberships and event assignments, organization settings, private meeting-link
-storage, activity logs, registration approval/waitlists, check-in windows,
-venue booking conflict checks, organization notifications, and guarded admin
-workflows. Then apply the latest RLS repair migrations,
-`supabase/migrations/20261024130000_fix_events_rls_recursion.sql` and
-`supabase/migrations/20261024140000_break_event_organization_rls_cycles.sql`,
-in order, and refresh the Supabase API schema cache. These repairs prevent
-attendee, organization, and event visibility policies from recursively
-evaluating each other. The admin Overview, Events, Attendees, Staff, Venues,
-Reports, and Settings pages read and update this live data.
-
-Organization administrators manage their organization. Event managers and
-check-in staff need event assignments to access attendee workflows; attendee
-email is disclosed only when the attendee has opted to share it. Staff additions
-apply to existing active KURO accounts because outbound invitation email is not
-configured. Paid events can be saved as drafts but cannot be published or
-registered until checkout exists. QR scanning, external email/SMS, PDF reports,
-and payment/revenue reporting are unavailable and are not simulated.
 
 ## Superadmin console
 

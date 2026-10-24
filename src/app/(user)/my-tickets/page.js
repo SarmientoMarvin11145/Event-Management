@@ -18,11 +18,12 @@ export default async function MyTicketsPage({ searchParams }) {
   await requireFeatureEnabled("my-tickets");
   const params = await searchParams;
   const selected = Array.isArray(params?.tab) ? params.tab[0] : params?.tab || "upcoming";
+  const paymentState = Array.isArray(params?.payment) ? params.payment[0] : params?.payment;
   const activeTab = tabs.some(([id]) => id === selected) ? selected : "upcoming";
   const { supabase, user } = await getAttendeeSession();
   const { data, error } = await supabase
     .from("registrations")
-    .select("id, status, ticket_type, registration_code, seat_number, booth_number, created_at, events(id, title, start_date, end_date, venue_name, city, banner_url, status, organizations(name, logo_url))")
+    .select("id, status, ticket_type, registration_code, seat_number, booth_number, created_at, events(id, title, start_date, end_date, venue_name, city, banner_url, status, ticket_price, organizations(name, logo_url))")
     .eq("attendee_id", user.id)
     .order("created_at", { ascending: false });
   throwOnSupabaseError(error);
@@ -40,6 +41,11 @@ export default async function MyTicketsPage({ searchParams }) {
   return (
     <div className="space-y-6">
       <PortalHeading title="My tickets" description="Your event registrations and ticket details." />
+      {paymentState === "processing" && (
+        <p className="rounded-md border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950" role="status">
+          PayMongo returned you from checkout. Your ticket appears here once the signed payment confirmation is received.
+        </p>
+      )}
       <nav aria-label="Ticket categories" className="flex flex-wrap gap-2">
         {tabs.map(([id, label]) => (
           <Link aria-current={activeTab === id ? "page" : undefined} className={`rounded-md border px-4 py-2 text-sm font-semibold ${activeTab === id ? "border-[#173d39] bg-[#173d39] text-white" : "border-[#cbd8d1] bg-white text-[#526864] hover:border-[#245c55]"}`} href={`/my-tickets?tab=${id}`} key={id}>{label}</Link>
@@ -50,7 +56,9 @@ export default async function MyTicketsPage({ searchParams }) {
           {filtered.map((ticket) => {
             const event = eventFromRelation(ticket.events);
             const canCancel = ["confirmed", "pending", "waitlisted", "invited"].includes(ticket.status)
-              && event && new Date(event.start_date) > now;
+              && event
+              && Number(event.ticket_price || 0) === 0
+              && new Date(event.start_date) > now;
             return (
               <Panel className="!p-0" key={ticket.id}>
                 <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_240px] sm:p-6">
@@ -60,14 +68,20 @@ export default async function MyTicketsPage({ searchParams }) {
                     <p className="mt-2 text-sm text-[#61736e]">{event ? formatEventDate(event.start_date) : "Date unavailable"}</p>
                     <p className="mt-1 text-sm text-[#61736e]">{[event?.venue_name, event?.city].filter(Boolean).join(", ") || "Venue to be announced"}</p>
                     <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                      <p><span className="font-semibold text-[#526864]">Registration ID:</span> {ticket.registration_code}</p>
+                      {ticket.status !== "pending" && <p><span className="font-semibold text-[#526864]">Registration ID:</span> {ticket.registration_code}</p>}
                       <p><span className="font-semibold text-[#526864]">Status:</span> <span className="capitalize">{ticket.status.replaceAll("_", " ")}</span></p>
                       {ticket.seat_number && <p><span className="font-semibold text-[#526864]">Seat:</span> {ticket.seat_number}</p>}
                       {ticket.booth_number && <p><span className="font-semibold text-[#526864]">Booth:</span> {ticket.booth_number}</p>}
                     </div>
-                    <p className="mt-4 rounded-md bg-[#f4f6f1] p-3 text-xs leading-5 text-[#61736e]">
-                      Keep this registration ID for reference. Scannable QR tickets, wallet passes, and PDF downloads require the organizer check-in and ticket-issuance workflows, which are not active yet.
-                    </p>
+                    {ticket.status === "pending" ? (
+                      <p className="mt-4 rounded-md bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                        Payment is still being verified. This is not a confirmed ticket; do not use it for event entry.
+                      </p>
+                    ) : (
+                      <p className="mt-4 rounded-md bg-[#f4f6f1] p-3 text-xs leading-5 text-[#61736e]">
+                        Keep this registration ID for reference. Scannable QR tickets, wallet passes, and PDF downloads require the organizer check-in and ticket-issuance workflows, which are not active yet.
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-2 sm:items-stretch">
                     {event?.venue_name && (
@@ -78,6 +92,11 @@ export default async function MyTicketsPage({ searchParams }) {
                         <input name="registration_id" type="hidden" value={ticket.id} />
                         <button className="w-full rounded-md border border-rose-200 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50" type="submit">Cancel registration</button>
                       </form>
+                    )}
+                    {ticket.status === "confirmed" && event && Number(event.ticket_price || 0) > 0 && (
+                      <p className="rounded-md bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                        Paid ticket cancellation and refunds are not available online. Contact the event organizer for assistance.
+                      </p>
                     )}
                     <Link className="rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]" href="/events">Browse events</Link>
                   </div>
