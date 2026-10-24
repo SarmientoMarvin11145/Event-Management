@@ -32,7 +32,11 @@ security restricts profile access to the owning user.
 The guest landing page uses KURO branding and reads public events from Supabase.
 Apply `supabase/migrations/20261015150800_create_public_events.sql` after the
 profile and role migrations. It creates organizations and events with row-level
-security; only published future events are visible to guests. The
+security; published events remain visible while registration has not closed or
+the event has not ended. Events without an end time are treated as ending one
+hour after their start. Apply
+`supabase/migrations/20261024210000_include_active_public_events.sql` to update
+public event visibility in existing Supabase projects. The
 `20261024200000_add_paymongo_test_event.sql` migration adds one published
 PayMongo test webinar so it appears in the welcome-page event feed after
 `supabase db push`.

@@ -1,6 +1,8 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/lib/authorization";
 import { isFeatureEnabled } from "@/lib/features";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -91,7 +93,19 @@ function submittedDate(formData, key, timezone) {
   return dateTimeToIso(String(formData.get(key) || ""), timezone);
 }
 
-export async function saveAdminEvent(formData) {
+function createEventSlug(title) {
+  const slugBase = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 140)
+    .replace(/-$/g, "") || "event";
+  return `${slugBase}-${randomUUID().replaceAll("-", "")}`;
+}
+
+export async function saveAdminEvent(_previousState, formData) {
   const context = await getOrganizationAdminContext(
     String(formData.get("organization_id") || "") || null,
   );
@@ -100,10 +114,10 @@ export async function saveAdminEvent(formData) {
   const eventId = String(formData.get("event_id") || "").trim() || null;
   const timezone = requiredText(formData, "timezone", "Timezone", 100);
   const title = requiredText(formData, "title", "Event title", 200);
-  const slug = requiredText(formData, "slug", "Event URL", 180)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  const submittedSlug = String(formData.get("slug") || "").trim();
+  const slug = submittedSlug
+    ? submittedSlug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    : createEventSlug(title);
   const category = String(formData.get("category") || "other");
   const capacityText = String(formData.get("capacity") || "").trim();
   const priceText = String(formData.get("ticket_price") || "0").trim();
@@ -145,7 +159,12 @@ export async function saveAdminEvent(formData) {
     p_timezone: timezone,
     p_clear_online_meeting_url: clearOnlineMeetingUrl,
   });
-  if (error) throw new Error(`Could not save event: ${error.message}`, { cause: error });
+  if (error) {
+    const message = error.message === "Only future events can be published"
+      ? "Only future events can be published. Choose a future start date and time, or save as a draft."
+      : `Could not save event: ${error.message}`;
+    return { error: message };
+  }
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/events");
   revalidatePath("/events");

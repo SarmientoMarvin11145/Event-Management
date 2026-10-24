@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useActionState } from "react";
 import { saveAdminEvent } from "@/app/(admin)/admin/actions";
 
 const categories = [
@@ -42,12 +45,19 @@ function Field({ label, children, hint }) {
 const inputClass = "min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-[#245c55] focus:ring-2 focus:ring-[#245c55]/15";
 
 export default function EventForm({ organization, event = null, venues = [], initialStatus = "draft", onlineMeetingUrl = "" }) {
+  const [state, formAction] = useActionState(saveAdminEvent, { error: "" });
   const timezone = event?.timezone || organization.timezone || "Asia/Manila";
 
   return (
-    <form action={saveAdminEvent} className="space-y-7">
+    <form action={formAction} className="space-y-7">
       <input name="event_id" type="hidden" value={event?.id || ""} />
       <input name="organization_id" type="hidden" value={organization.id} />
+      <input name="slug" type="hidden" value={event?.slug || ""} />
+      {state.error && (
+        <p className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-800" role="alert">
+          {state.error}
+        </p>
+      )}
       <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 sm:p-6">
         <div className="sm:col-span-2">
           <h2 className="font-bold text-slate-900">Basic information</h2>
@@ -55,9 +65,6 @@ export default function EventForm({ organization, event = null, venues = [], ini
         </div>
         <Field label="Event title">
           <input className={inputClass} defaultValue={event?.title || ""} maxLength={200} name="title" required />
-        </Field>
-        <Field label="Event URL slug" hint="Lowercase letters, numbers, and hyphens.">
-          <input className={inputClass} defaultValue={event?.slug || ""} maxLength={180} name="slug" pattern="[a-zA-Z0-9]+([\-][a-zA-Z0-9]+)*" required />
         </Field>
         <Field label="Category">
           <select className={inputClass} defaultValue={event?.category || "other"} name="category">
@@ -83,7 +90,7 @@ export default function EventForm({ organization, event = null, venues = [], ini
         <Field label="Event timezone">
           <input className={inputClass} defaultValue={timezone} maxLength={100} name="timezone" required />
         </Field>
-        <Field label="Start date and time">
+        <Field label="Start date and time" hint="Use a future date and time to publish this event. Past or ongoing events can be saved as drafts.">
           <input className={inputClass} defaultValue={localDateTime(event?.start_date, timezone)} name="start_date" required type="datetime-local" />
         </Field>
         <Field label="End date and time">
@@ -135,7 +142,7 @@ export default function EventForm({ organization, event = null, venues = [], ini
           </select>
         </Field>
         <Field label="Private online meeting link" hint="Visible only to eligible registrants and organization members. HTTPS required.">
-          <input className={inputClass} defaultValue={onlineMeetingUrl} name="online_meeting_url" type="url" />
+          <input className={inputClass} defaultValue={onlineMeetingUrl} name="online_meeting_url" pattern="https://.+" title="Enter a full URL that starts with https://" type="url" />
         </Field>
         {onlineMeetingUrl && (
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -150,7 +157,7 @@ export default function EventForm({ organization, event = null, venues = [], ini
       </section>
 
       <section className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <Field label="Event status">
+        <Field label="Event status" hint={!event ? "Only future events can be published. Choose Save as draft for an event that has already started." : undefined}>
           {event ? (
             <>
               <span className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium capitalize text-slate-700">{event.status}</span>

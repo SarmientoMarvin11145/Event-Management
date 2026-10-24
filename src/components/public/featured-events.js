@@ -46,13 +46,16 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
     let active = true;
 
     async function loadEvents() {
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const latestStartWhenEndIsMissing = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, title, slug, description, banner_url, start_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)",
+          "id, title, slug, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)",
         )
         .eq("status", "published")
-        .gte("start_date", new Date().toISOString())
+        .or(`registration_deadline.is.null,registration_deadline.gte.${nowIso},end_date.gte.${nowIso},and(end_date.is.null,start_date.gte.${latestStartWhenEndIsMissing})`)
         .order("start_date", { ascending: true })
         .limit(directory ? 24 : 6);
 
