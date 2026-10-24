@@ -42,8 +42,8 @@ PayMongo test webinar so it appears in the welcome-page event feed after
 `supabase db push`.
 
 The feature, AI, integrations, pricing, and resource sections are product
-previews. AI, payments, newsletter subscriptions, registration/check-in, and
-paid checkout are not active in the current app.
+previews. PayMongo test-mode checkout is available for paid event tickets and
+organization plans; live payments are not enabled.
 
 Apply `supabase/migrations/20261016100000_record_policy_consent.sql` after the
 profile migration to store the Terms and Privacy policy versions and acceptance
@@ -84,6 +84,32 @@ attendee-to-organizer certificate issuance require workflows or integrations
 that are not part of this preview. The app reports these limitations rather
 than presenting them as completed actions.
 
+## PayMongo test checkout
+
+Paid checkout is restricted to PayMongo test keys. Add these server-side values
+to `.env.local` (never use a `NEXT_PUBLIC_` prefix for either secret):
+
+```dotenv
+PAYMONGO_SECRET_KEY=sk_test_replace_with_your_test_secret
+PAYMONGO_WEBHOOK_SECRET=replace_with_your_webhook_signing_secret
+SUPABASE_SERVICE_ROLE_KEY=replace_with_your_rotated_server_secret
+```
+
+Get the PayMongo test secret from the PayMongo Dashboard's test mode and create
+a webhook for `checkout_session.payment.paid` pointing to
+`https://<your-public-app-host>/api/payments/webhook`. Copy that endpoint's
+signing secret to `PAYMONGO_WEBHOOK_SECRET`. PayMongo must be able to reach the
+webhook over HTTPS; for local testing, use a secure public tunnel or a deployed
+test environment. Payment status is confirmed by the signed webhook, not by
+returning from the checkout page.
+
+Use a newly rotated Supabase service-role secret from the Supabase project API
+settings for `SUPABASE_SERVICE_ROLE_KEY`. This key bypasses row-level security
+and must stay server-only. After changing `.env.local`, restart the dev server.
+Apply `20261024190000_add_paymongo_payments.sql` and
+`20261024200000_add_paymongo_test_event.sql` after the attendee and organization
+admin migrations. The second migration adds the sample test event.
+
 ## Superadmin console
 
 Apply `supabase/migrations/20261016130000_create_superadmin_console.sql` after
@@ -102,8 +128,9 @@ actions. Organization suspension hides its events from public event listings.
 
 Plan labels, feature flags, platform settings, content, and in-app broadcasts
 are stored by KURO, but are not a substitute for the respective runtime
-integrations. There is no payment ledger, subscription processor, outbound
-email/SMS provider, impersonation, forced logout, IP firewall, uptime
+integrations. The payment ledger records PayMongo test transactions only; live
+payments, refunds, payouts, and automated subscription renewals are unavailable.
+There is no outbound email/SMS provider, impersonation, forced logout, IP firewall, uptime
 telemetry, backup control, or job queue in this project. The console marks
 these capabilities unavailable rather than fabricating status or financial
 metrics. Published content is saved but is not yet wired into the public site;
