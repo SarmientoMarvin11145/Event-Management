@@ -103,7 +103,7 @@ export default async function AdminEventsPage({ searchParams }) {
           </p>
         )}
       </div>
-      <p className="mt-3 text-xs text-slate-500">Showing up to 250 events. Paid events cannot be published until checkout is configured.</p>
+      <p className="mt-3 text-xs text-slate-500">Showing up to 250 events. Paid tickets use PayMongo test checkout.</p>
     </WorkspacePage>
   );
 }

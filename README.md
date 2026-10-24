@@ -111,7 +111,10 @@ settings for `SUPABASE_SERVICE_ROLE_KEY`. This key bypasses row-level security
 and must stay server-only. After changing `.env.local`, restart the dev server.
 Apply `20261024190000_add_paymongo_payments.sql` and
 `20261024200000_add_paymongo_test_event.sql` after the attendee and organization
-admin migrations. The second migration adds the sample test event.
+admin migrations, then apply
+`20261024230000_allow_paid_event_publishing.sql` to allow PHP-priced events to
+be published with PayMongo test checkout. Paid tickets are confirmed only after
+the payment webhook verifies the transaction.
 
 ## Superadmin console
 

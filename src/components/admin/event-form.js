@@ -129,7 +129,7 @@ export default function EventForm({ organization, event = null, venues = [], ini
         <Field label="Capacity" hint="Leave blank for unlimited capacity.">
           <input className={inputClass} defaultValue={event?.capacity || ""} min="1" name="capacity" type="number" />
         </Field>
-        <Field label="Registration fee" hint="Paid checkout is unavailable until a payment provider is configured.">
+        <Field label="Registration fee" hint="Paid tickets are processed through PayMongo test checkout.">
           <input className={inputClass} defaultValue={event?.ticket_price || "0"} min="0" name="ticket_price" step="0.01" type="number" />
         </Field>
         <Field label="Currency">
@@ -177,7 +177,7 @@ export default function EventForm({ organization, event = null, venues = [], ini
           Cancel
         </Link>
         {Number(event?.ticket_price) > 0 && (
-          <p className="basis-full text-sm text-amber-800">Paid event registration will be rejected until payment checkout is available.</p>
+          <p className="basis-full text-sm text-amber-800">Attendees will complete payment through PayMongo test checkout. Ticket status changes after payment is verified.</p>
         )}
       </section>
     </form>
