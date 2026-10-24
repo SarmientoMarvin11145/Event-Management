@@ -1,7 +1,7 @@
 alter table public.organizations
   add column if not exists subscription_expires_at timestamptz;
 
-create table public.payment_transactions (
+create table if not exists public.payment_transactions (
   id uuid primary key default gen_random_uuid(),
   reference_number text not null unique,
   user_id uuid not null references public.profiles (id) on delete restrict,
@@ -27,11 +27,11 @@ create table public.payment_transactions (
   )
 );
 
-create index payment_transactions_user_created_idx
+create index if not exists payment_transactions_user_created_idx
   on public.payment_transactions (user_id, created_at desc);
-create index payment_transactions_org_created_idx
+create index if not exists payment_transactions_org_created_idx
   on public.payment_transactions (organization_id, created_at desc);
-create index payment_transactions_status_created_idx
+create index if not exists payment_transactions_status_created_idx
   on public.payment_transactions (status, created_at desc);
 
 drop policy if exists "Attendees can cancel their upcoming registrations"
@@ -75,6 +75,8 @@ $$;
 revoke execute on function public.is_organization_admin(uuid) from public, anon;
 grant execute on function public.is_organization_admin(uuid) to authenticated, service_role;
 
+drop policy if exists "Users can view their payment transactions"
+  on public.payment_transactions;
 create policy "Users can view their payment transactions"
   on public.payment_transactions for select to authenticated
   using (
