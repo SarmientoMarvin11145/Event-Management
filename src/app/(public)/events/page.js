@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import FeaturedEvents from "@/components/public/featured-events";
 
 export const metadata = {
-  title: "Public events | KURO",
+  title: "Browse events | KURO",
 };
 
 export default function EventsPage({ searchParams }) {
@@ -14,8 +14,11 @@ export default function EventsPage({ searchParams }) {
 }
 
 async function EventsDirectory({ searchParams }) {
-  const { q } = await searchParams;
+  const { q, category, price } = await searchParams;
   const initialQuery = Array.isArray(q) ? q[0] || "" : q || "";
+  const initialCategory = Array.isArray(category) ? category[0] || "" : category || "";
+  const requestedPrice = Array.isArray(price) ? price[0] || "all" : price || "all";
+  const initialPrice = ["all", "free", "paid"].includes(requestedPrice) ? requestedPrice : "all";
 
-  return <FeaturedEvents directory initialQuery={initialQuery} />;
+  return <FeaturedEvents directory initialCategory={initialCategory} initialPrice={initialPrice} initialQuery={initialQuery} />;
 }

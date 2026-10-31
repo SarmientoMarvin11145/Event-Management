@@ -1,21 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { addFavorite, registerForEvent } from "@/app/(user)/actions";
+import { addFavorite } from "@/app/(user)/actions";
 import EventSeatMap from "@/components/public/event-seat-map";
-import GuestEventRegistration from "@/components/public/guest-event-registration";
+import { isEventRegistrationAvailable } from "@/lib/event-registration";
 
 export default function PublicEventDetails({ slug }) {
-  const router = useRouter();
   const [event, setEvent] = useState(null);
   const [status, setStatus] = useState("loading");
   const [seatMapState, setSeatMapState] = useState({ eventId: null, data: null, status: "idle" });
-  const [checkoutPending, setCheckoutPending] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
-  const [selectedSeat, setSelectedSeat] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -23,7 +18,7 @@ export default function PublicEventDetails({ slug }) {
     async function loadEvent() {
       const { data, error } = await supabase
         .from("events")
-        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, registration_form, organizations(name, logo_url)")
+        .select("id, slug, title, short_description, description, banner_url, start_date, end_date, venue_name, city, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)")
         .eq("slug", slug)
         .eq("status", "published")
         .maybeSingle();
@@ -37,8 +32,26 @@ export default function PublicEventDetails({ slug }) {
         return;
       }
 
-      setEvent(data);
-      setStatus(data ? "ready" : "missing");
+      if (!data) {
+        setStatus("missing");
+        return;
+      }
+      const { data: summaries, error: summaryError } = await supabase.rpc("get_event_ticket_summary", {
+        p_event_ids: [data.id],
+      });
+      if (!active) return;
+      if (summaryError) {
+        console.error("Unable to load public ticket availability.", summaryError);
+        setStatus("unavailable");
+        return;
+      }
+      const summary = summaries?.[0];
+      setEvent({
+        ...data,
+        starting_price: summary?.starting_price ?? null,
+        available_quantity: summary ? summary.available_quantity : 0,
+      });
+      setStatus("ready");
     }
 
     loadEvent();
@@ -98,89 +111,119 @@ export default function PublicEventDetails({ slug }) {
     ? seatMapState.eventId === event.id ? seatMapState.status : "loading"
     : "idle";
   const seatMap = seatMapState.eventId === event.id ? seatMapState.data : null;
-  const registrationAvailable = new Date(event.start_date) > new Date()
-    && (!event.registration_opens_at || new Date(event.registration_opens_at) <= new Date())
-    && (!event.registration_deadline || new Date(event.registration_deadline) >= new Date());
-  const ticketPrice = Number(event.ticket_price || 0);
-
-  async function startCheckout() {
-    setCheckoutPending(true);
-    setCheckoutError("");
-    try {
-      const response = await fetch("/api/payments/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "event_ticket", eventId: event.id }),
-      });
-      if (response.status === 401) {
-        router.push("/login");
-        return;
-      }
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not start checkout.");
-      window.location.assign(result.checkoutUrl);
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Could not start checkout.");
-      setCheckoutPending(false);
-    }
-  }
-
+  const registrationAvailable = isEventRegistrationAvailable(event);
+  const ticketsAvailable = event.starting_price !== null && event.available_quantity !== 0;
+  const formattedPrice = event.starting_price === null
+    ? null
+    : new Intl.NumberFormat("en-PH", { style: "currency", currency: event.currency || "PHP" }).format(event.starting_price);
   return (
-    <main className="kuro-page min-h-[70vh] bg-[#fbfcf8] text-[#173d39]">
-      {event.banner_url && (
-        <div aria-label={`${event.title} event banner`} className="h-64 bg-cover bg-center sm:h-96" role="img" style={{ backgroundImage: `url("${event.banner_url}")` }} />
-      )}
-      <article className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">{organization?.name || "KURO organizer"}</p>
-          <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight sm:text-5xl">{event.title}</h1>
-          <p className="mt-5 text-sm font-semibold text-[#526864]">{dateLabel}</p>
-          <p className="mt-2 text-sm text-[#61736e]">{[event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced"}</p>
-          <div className="mt-8 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-[#526864]">
-            {event.description || "The organizer has not added an event description yet."}
+    <main className="kuro-page min-h-[70vh] bg-[#f7f8f4] pb-28 text-[#173d39] lg:pb-0">
+      <section className="relative isolate overflow-hidden bg-[#153a35]">
+        {event.banner_url && (
+          <div aria-label={`${event.title} event banner`} className="absolute inset-0 -z-20 bg-cover bg-center" role="img" style={{ backgroundImage: `url("${event.banner_url}")` }} />
+        )}
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-[#10201e]/95 via-[#10201e]/85 to-[#10201e]/65 sm:to-[#10201e]/45" />
+        <div className="mx-auto max-w-7xl px-4 py-6 text-white sm:px-8 sm:py-14">
+          <Link className="inline-flex items-center gap-2 text-sm font-semibold text-white/75 hover:text-white" href="/events">
+            <span aria-hidden="true">&#8592;</span> Explore events
+          </Link>
+          <div className="mt-6 max-w-4xl sm:mt-10">
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#ffcf72] backdrop-blur sm:text-xs">
+              <span className="size-1.5 rounded-full bg-[#ffcf72]" /> {organization?.name || "KURO organizer"}
+            </p>
+            <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:mt-5 sm:text-5xl lg:text-6xl">{event.title}</h1>
+            {event.short_description && <p className="mt-3 max-w-2xl text-sm leading-6 text-white/80 sm:mt-4 sm:text-lg sm:leading-7">{event.short_description}</p>}
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-white/85 sm:mt-6 sm:gap-3 sm:text-sm">
+              <span className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-2 backdrop-blur sm:px-3">&#9719; {dateLabel}</span>
+              <span className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-2 backdrop-blur sm:px-3">&#9906; {[event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced"}</span>
+            </div>
           </div>
         </div>
-        <aside className="kuro-panel h-fit rounded-md border border-[#dce4dc] bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#d6533d]">Event details</p>
-          {ticketPrice > 0 && (
-            <p className="mt-3 text-sm font-semibold text-[#173d39]">
-              {new Intl.NumberFormat("en-PH", { style: "currency", currency: event.currency || "PHP" }).format(ticketPrice)}
+      </section>
+
+      <div className="mx-auto grid max-w-7xl items-start gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <article className="min-w-0">
+          <section className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5 shadow-sm sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">The experience</p>
+            <h2 className="mt-2 text-2xl font-bold text-[#173d39]">About this event</h2>
+            <div className="mt-5 whitespace-pre-wrap text-sm leading-7 text-[#526864]">
+              {event.description || "The organizer has not added an event description yet."}
+            </div>
+          </section>
+
+          <section className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5">
+              <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-xl bg-[#edf2e9] text-lg text-[#245c55]">&#9719;</span>
+              <h2 className="mt-4 text-sm font-bold text-[#173d39]">Date and time</h2>
+              <p className="mt-1 text-sm leading-6 text-[#61736e]">{dateLabel}</p>
+            </div>
+            <div className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5">
+              <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-xl bg-[#fbe9e3] text-lg text-[#d6533d]">&#9906;</span>
+              <h2 className="mt-4 text-sm font-bold text-[#173d39]">Where it happens</h2>
+              <p className="mt-1 text-sm leading-6 text-[#61736e]">{[event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced"}</p>
+            </div>
+          </section>
+
+          {event.venue_id && (
+            <section className="kuro-panel mt-5 rounded-2xl border border-[#dce4dc] bg-white p-5 sm:p-8">
+              <h2 className="text-xl font-bold text-[#173d39]">Choose your seat</h2>
+              <p className="mt-1 text-sm text-[#61736e]">Select a seat to include it with your ticket registration.</p>
+              <EventSeatMap event={event} seatMap={seatMap} status={seatMapStatus} />
+            </section>
+          )}
+        </article>
+
+        <aside className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5 shadow-xl shadow-[#173d39]/10 sm:p-6 lg:sticky lg:top-24">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#d6533d]">Tickets</p>
+              {formattedPrice ? (
+                <p className="mt-2 text-3xl font-black tracking-tight text-[#173d39]">
+                  {Number(event.starting_price) === 0 ? "Free" : formattedPrice}
+                  {Number(event.starting_price) !== 0 && <span className="ml-1 text-sm font-medium text-[#61736e]">and up</span>}
+                </p>
+              ) : (
+                <p className="mt-2 text-xl font-bold text-[#173d39]">Tickets unavailable</p>
+              )}
+            </div>
+            <span className="rounded-full bg-[#edf2e9] px-3 py-1.5 text-xs font-bold text-[#245c55]">Secure registration</span>
+          </div>
+          <div className="mt-5 space-y-3 border-y border-[#edf0eb] py-5 text-sm">
+            <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#9719;</span><span>{dateLabel}</span></p>
+            <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#9906;</span><span>{[event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced"}</span></p>
+            <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#10003;</span><span>{event.available_quantity == null ? "Tickets available" : `${Number(event.available_quantity).toLocaleString()} tickets remaining`}</span></p>
+          </div>
+          {registrationAvailable && ticketsAvailable ? (
+            <Link className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#ed6148] px-5 py-4 text-sm font-bold text-white shadow-lg shadow-[#ed6148]/20 transition hover:-translate-y-0.5 hover:bg-[#d74d37]" href={`/e/${event.slug}/register`}>
+              {Number(event.starting_price) === 0 ? "Reserve your free ticket" : "Choose tickets"} <span aria-hidden="true">&#8594;</span>
+            </Link>
+          ) : (
+            <p className="mt-5 rounded-xl bg-[#f3f5f1] px-4 py-3 text-center text-sm font-semibold text-[#61736e]">
+              {!registrationAvailable ? "Registration is not currently open." : "Tickets are currently unavailable."}
             </p>
           )}
-          {event.venue_id ? (
-            <EventSeatMap event={event} onSeatChange={setSelectedSeat} seatMap={seatMap} showRegistrationButton={ticketPrice > 0} status={seatMapStatus} />
-          ) : null}
-          {ticketPrice > 0 ? registrationAvailable ? (
-            <div className="mt-4">
-              {event.currency === "PHP" ? (
-                <button className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37] disabled:cursor-wait disabled:opacity-60" disabled={checkoutPending} onClick={startCheckout} type="button">
-                  {checkoutPending ? "Opening secure checkout..." : "Buy ticket"}
-                </button>
-              ) : (
-                <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">Online checkout is currently available for PHP-priced events only.</p>
-              )}
-              {checkoutError && <p className="mt-2 text-sm text-rose-700" role="alert">{checkoutError}</p>}
-              <p className="mt-2 text-xs leading-5 text-[#61736e]">Secure test-mode checkout by PayMongo. Your ticket is confirmed after payment verification.</p>
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-[#61736e]">Registration is not available for this event.</p>
-          ) : registrationAvailable ? (
-            <GuestEventRegistration
-              eventId={event.id}
-              eventTitle={event.title}
-              fields={event.registration_form || []}
-              registrationAvailable={registrationAvailable && (!event.venue_id || Boolean(selectedSeat))}
-              seatId={event.venue_id ? selectedSeat : ""}
-            />
-          ) : (
-            <p className="mt-2 text-sm text-[#61736e]">Registration is not available for this event.</p>
-          )}
-          <form action={addFavorite} className="mt-2">
+          <p className="mt-3 text-center text-xs leading-5 text-[#7a8b84]">Your registration and ticket details will be available in your KURO account.</p>
+          <form action={addFavorite} className="mt-4">
             <input name="event_id" type="hidden" value={event.id} />
-            <button className="w-full rounded-md border border-[#cbd8d1] px-4 py-3 text-sm font-bold text-[#245c55] hover:bg-[#f4f6f1]" type="submit">Save event</button>
+            <button className="w-full rounded-xl border border-[#cbd8d1] px-4 py-3 text-sm font-bold text-[#245c55] transition hover:border-[#245c55] hover:bg-[#f4f6f1]" type="submit">♡ <span className="ml-1">Save event</span></button>
           </form>
         </aside>
-      </article>
+      </div>
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-[#e2e8e1] bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(23,61,57,0.10)] backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#71817b]">Tickets from</p>
+            <p className="truncate text-sm font-black text-[#173d39]">{formattedPrice || "Unavailable"}</p>
+          </div>
+          {registrationAvailable && ticketsAvailable ? (
+            <Link className="shrink-0 rounded-xl bg-[#ed6148] px-5 py-3 text-sm font-bold text-white" href={`/e/${event.slug}/register`}>
+              {Number(event.starting_price) === 0 ? "Reserve ticket" : "Get tickets"}
+            </Link>
+          ) : (
+            <span className="shrink-0 rounded-xl bg-[#f3f5f1] px-4 py-3 text-xs font-semibold text-[#61736e]">Unavailable</span>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

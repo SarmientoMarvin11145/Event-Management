@@ -43,7 +43,7 @@ function requiredText(formData, key, label, maxLength = 200) {
   return value;
 }
 
-export async function registerForEvent(formData) {
+export async function registerForEvent(_previousState, formData) {
   await requireEnabledFeature("event-registration", "Event registration");
   const { supabase, user } = await getActionContext();
   const eventId = requiredText(formData, "event_id", "Event");

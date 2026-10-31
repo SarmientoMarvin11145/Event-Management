@@ -156,35 +156,43 @@ export default function PublicHome() {
           role="img"
           style={{ backgroundImage: "url(https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=2000&q=90)" }}
         />
-        <div className="absolute inset-0 -z-10 bg-[#10201e]/65" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#10201e]/90 via-[#10201e]/70 to-[#10201e]/35" />
         <div className="mx-auto w-full max-w-7xl px-5 py-16 text-white sm:px-8 sm:py-24">
           <div className="max-w-3xl">
             <p className="mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[#ffcf72]">
-              <span className="size-2 rounded-full bg-[#ffcf72]" /> {text("Events, people, all in one place")}
+              <span className="size-2 rounded-full bg-[#ffcf72]" /> {text("KURO event marketplace")}
             </p>
             <h1 className="text-4xl font-bold leading-[1.06] sm:text-6xl lg:text-7xl">
-              {text("Manage events. Track attendance. Make every gathering count.")}
+              {text("Find the moments worth showing up for.")}
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
-              {text("One platform for schools, restaurants, LGUs, webinars, expos, and every event in between.")}
+              {text("Explore local experiences, discover new communities, and book your place at events you will remember.")}
             </p>
+            <form action="/events" className="mt-8 flex max-w-2xl rounded-xl bg-white p-1.5 shadow-2xl" role="search">
+              <label className="sr-only" htmlFor="home-event-search">{text("Search public events")}</label>
+              <span aria-hidden="true" className="flex items-center pl-3 text-lg text-[#82918b]">&#9906;</span>
+              <input className="min-w-0 flex-1 rounded-lg border-0 bg-white px-3 py-3 text-sm text-[#173d39] outline-none placeholder:text-[#87958f]" id="home-event-search" name="q" placeholder={text("Search events, cities, or venues")} type="search" />
+              <button className="rounded-lg bg-[#ed6148] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#d74d37]" type="submit">{text("Find events")}</button>
+            </form>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link className="rounded-md bg-[#ef654b] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#d94e38]" href="/register">
-                {text("Create an account")} <span aria-hidden="true" className="ml-2">&#8594;</span>
+              <Link className="rounded-md bg-[#ef654b] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#d94e38]" href="/events">
+                {text("Explore all events")} <span aria-hidden="true" className="ml-2">&#8594;</span>
               </Link>
-              <Link className="rounded-md border border-white/55 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10" href="#events">
-                {text("Browse public events")}
+              <Link className="rounded-md border border-white/55 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10" href="#organizers">
+                {text("Host an event")}
               </Link>
             </div>
             <div className="mt-9 flex flex-wrap gap-x-7 gap-y-2 text-xs font-semibold text-white/80 sm:text-sm">
-              <span>{text("One event workspace")}</span>
-              <span>{text("Clear attendee flows")}</span>
-              <span>{text("Built for event teams in the Philippines.")}</span>
+              <span>{text("Experiences from local organizers")}</span>
+              <span>{text("Free and paid tickets")}</span>
+              <span>{text("Simple, secure registration")}</span>
             </div>
           </div>
         </div>
-        <p className="absolute bottom-5 right-8 hidden text-xs font-medium text-white/70 lg:block">KURO product preview</p>
+        <p className="absolute bottom-5 right-8 hidden text-xs font-medium text-white/70 lg:block">{text("Find your people. Find your next event.")}</p>
       </section>
+
+      <FeaturedEvents />
 
       <section className="kuro-soft bg-[#edf2e9] px-5 py-12 sm:px-8 sm:py-16" data-scroll-reveal="up" id="sectors">
         <div className="mx-auto max-w-7xl">
@@ -261,8 +269,6 @@ export default function PublicHome() {
           <p className="mt-8 text-xs text-white/55">Workflow preview. Registration, check-in, and reporting tools are being developed.</p>
         </div>
       </section>
-
-      <FeaturedEvents />
 
       <section className="kuro-page bg-[#fbfcf8] px-5 py-16 sm:px-8 sm:py-20" data-scroll-reveal="up" id="about">
         <div className="mx-auto max-w-7xl">

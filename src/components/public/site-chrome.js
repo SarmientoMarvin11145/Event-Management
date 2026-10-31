@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { setLocale, translate, useLocale } from "@/lib/locale";
 import SignOutButton from "@/components/sign-out-button";
@@ -48,10 +49,8 @@ export function PublicNavbar() {
   }
 
   const navLinks = [
-    { href: "/#features", label: "Features" },
-    { href: "/#events", label: "Events" },
-    { href: "/#about", label: "About" },
-    { href: "/#contact", label: "Contact" },
+    { href: "/events", label: "Explore events" },
+    { href: "/my-tickets", label: "My tickets" },
   ];
 
   return (
@@ -64,49 +63,16 @@ export function PublicNavbar() {
           <span className="text-xl font-black tracking-[0.08em]">KURO</span>
         </Link>
 
-        <div className="hidden items-center gap-3 xl:flex">
-          {navLinks.slice(0, 2).map((link) => (
-            <a className="text-sm font-semibold text-[#526864] hover:text-[#ed6148]" href={link.href} key={link.href}>
+        <div className="hidden items-center gap-5 xl:flex">
+          {navLinks.map((link) => (
+            <Link className="text-sm font-semibold text-[#526864] hover:text-[#ed6148]" href={link.href} key={link.href}>
               {text(link.label)}
-            </a>
+            </Link>
           ))}
-          <details className="group relative">
-            <summary className="cursor-pointer list-none text-sm font-semibold text-[#526864] hover:text-[#ed6148]">
-              {text("For teams")} <span aria-hidden="true">&#9662;</span>
-            </summary>
-            <div className="kuro-panel absolute left-0 top-full z-50 mt-3 min-w-48 rounded-md border border-[#dfe7df] bg-white p-2 shadow-xl">
-              {[
-                ["Schools", "/#for-schools"],
-                ["Restaurants", "/#for-restaurants"],
-                ["Barangay & LGU", "/#for-lgu"],
-                ["Webinars", "/#for-webinars"],
-                ["Expos", "/#for-expos"],
-                ["Private events", "/#for-private-events"],
-                ["Apply as an organizer", "/#organizers"],
-                ["About", "/#about"],
-                ["Contact", "/#contact"],
-              ].map(([label, href]) => (
-                <a className="block rounded px-3 py-2 text-sm text-[#526864] hover:bg-[#f0f5ed] hover:text-[#183c38]" href={href} key={href}>
-                  {text(label)}
-                </a>
-              ))}
-            </div>
-          </details>
+          <Link className="text-sm font-semibold text-[#526864] hover:text-[#ed6148]" href="/apply-organizer">
+            {text("For organizers")}
+          </Link>
         </div>
-
-        <form action="/events" className="hidden min-w-0 flex-1 lg:flex" role="search">
-          <label className="sr-only" htmlFor="site-event-search">Search public events</label>
-          <input
-            className="kuro-input min-w-0 w-full rounded-l-md border border-r-0 border-[#d5dfd7] bg-white px-3 py-2 text-sm text-[#183c38] outline-none placeholder:text-[#87958f] focus:border-[#38665e]"
-            id="site-event-search"
-            name="q"
-            placeholder={text("Search events")}
-            type="search"
-          />
-          <button className="shrink-0 rounded-r-md bg-[#183c38] px-4 text-xs font-bold text-white hover:bg-[#29574f]" type="submit">
-            {text("Search")}
-          </button>
-        </form>
 
         <div className="hidden shrink-0 items-center gap-2 lg:flex">
           <label className="sr-only" htmlFor="site-language">Language</label>
@@ -151,16 +117,11 @@ export function PublicNavbar() {
 
       {menuOpen && (
         <div className="kuro-panel border-t border-[#dfe7df] bg-[#fbfcf8] px-5 py-4 lg:hidden">
-          <form action="/events" className="mb-3 flex" role="search">
-            <label className="sr-only" htmlFor="mobile-event-search">Search public events</label>
-            <input className="kuro-input min-w-0 flex-1 rounded-l-md border border-[#d5dfd7] bg-white px-3 py-2.5 text-sm" id="mobile-event-search" name="q" placeholder={text("Search events")} type="search" />
-            <button className="shrink-0 rounded-r-md bg-[#183c38] px-3 text-xs font-bold text-white" type="submit">{text("Search")}</button>
-          </form>
           <div className="grid grid-cols-2 gap-1">
-            {[...navLinks, { href: "/#sectors", label: "Sectors" }, { href: "/#organizers", label: "Apply as an organizer" }].map((link) => (
-              <a className="rounded px-3 py-2.5 text-sm font-semibold text-[#526864] hover:bg-[#edf2e9]" href={link.href} key={link.href} onClick={() => setMenuOpen(false)}>
+            {[...navLinks, { href: "/apply-organizer", label: "For organizers" }].map((link) => (
+            <Link className="rounded px-3 py-2.5 text-sm font-semibold text-[#526864] hover:bg-[#edf2e9]" href={link.href} key={link.href} onClick={() => setMenuOpen(false)}>
                 {text(link.label)}
-              </a>
+            </Link>
             ))}
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-[#dfe7df] pt-3">
@@ -232,15 +193,15 @@ export function PublicFooter() {
             KURO
           </Link>
           <p className="mt-4 max-w-xs text-sm leading-6 text-[#b7c8c2]">
-            {text("One workspace for events, people, and the moments that bring them together.")}
+            {text("Discover local events, reserve tickets, and keep every event plan in one place.")}
           </p>
-          <p className="mt-5 text-xs text-[#8fa69e]">{text("Built for event teams in the Philippines.")}</p>
+          <p className="mt-5 text-xs text-[#8fa69e]">{text("Find your people. Find your next event.")}</p>
         </div>
-        <FooterColumn locale={locale} title={text("Product")} links={[["Features", "/#features"], ["Events", "/events"], ["Pricing", "/#pricing"], ["Demo", "/#demo"]]} />
-        <FooterColumn locale={locale} title={text("For teams")} links={[["Schools", "/#for-schools"], ["Restaurants", "/#for-restaurants"], ["LGUs", "/#for-lgu"], ["Webinars", "/#for-webinars"], ["Expos", "/#for-expos"], ["Apply as an organizer", "/#organizers"]]} />
-        <FooterColumn locale={locale} title={text("Resources")} links={[["Guides", "/#resources"], ["FAQs", "/#faq"], ["Contact", "/#contact"], ["Status", "/#about"]]} />
+        <FooterColumn locale={locale} title={text("Discover")} links={[["Browse all events", "/events"], ["Free events", "/events?price=free"], ["Paid events", "/events?price=paid"]]} />
+        <FooterColumn locale={locale} title={text("For organizers")} links={[["Apply to host events", "/apply-organizer"], ["Organizer sign in", "/login"]]} />
+        <FooterColumn locale={locale} title={text("Help & information")} links={[["Help center", "/help"], ["Privacy policy", "/privacy"], ["Terms & conditions", "/terms"]]} />
         {loading ? (
-          <FooterColumn locale={locale} title={text("Account")} links={[["Log in", "/login"], ["Create account", "/register"], ["Privacy Policy", "/privacy"], ["Terms & Conditions", "/terms"]]} />
+          <FooterColumn locale={locale} title={text("Your account")} links={[["My tickets", "/my-tickets"], ["Saved events", "/favorites"], ["Log in", "/login"], ["Create account", "/register"]]} />
         ) : user ? (
           <>
             <div className="mt-4 space-y-3">
@@ -256,10 +217,54 @@ export function PublicFooter() {
         <span>© 2026 KURO. {text("All rights reserved.")}</span>
         <span>Privacy-first by design · Terms of service</span>
       </div>
-      <Link className="fixed bottom-4 right-4 z-40 rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-[#d74d37] sm:hidden" href="/register">
-        Get started free
-      </Link>
     </footer>
+  );
+}
+
+export function PublicMobileNav() {
+  return (
+    <Suspense fallback={<MobileNavPlaceholder />}>
+      <PublicMobileNavLinks />
+    </Suspense>
+  );
+}
+
+function MobileNavPlaceholder() {
+  return (
+    <nav aria-hidden="true" className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e2e8e1] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,61,57,0.08)] backdrop-blur lg:hidden">
+      <div className="mx-auto grid min-h-16 max-w-lg grid-cols-5" />
+    </nav>
+  );
+}
+
+function PublicMobileNavLinks() {
+  const pathname = usePathname();
+  const currentPath = pathname || "/";
+  const locale = useLocale();
+  const text = (value) => translate(locale, value);
+  const links = [
+    { href: "/", label: "Home", icon: "M3 10.8 12 3l9 7.8v9.1a1.1 1.1 0 0 1-1.1 1.1h-5.2v-6.2h-5.4V21H4.1A1.1 1.1 0 0 1 3 19.9z", active: currentPath === "/" },
+    { href: "/events", label: "Explore", icon: "M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21m-10.5-6a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9", active: currentPath.startsWith("/events") || currentPath.startsWith("/e/") },
+    { href: "/my-tickets", label: "Tickets", icon: "M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v3a2 2 0 0 0 0 4v3a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5v-3a2 2 0 0 0 0-4zM12 7v1m0 3v1m0 3v1", active: currentPath.startsWith("/my-tickets") },
+    { href: "/favorites", label: "Saved", icon: "M20.8 8.8c0 5.2-8.8 11-8.8 11s-8.8-5.8-8.8-11A4.8 4.8 0 0 1 12 6.3a4.8 4.8 0 0 1 8.8 2.5Z", active: currentPath.startsWith("/favorites") },
+    { href: "/profile", label: "Profile", icon: "M20 21a8 8 0 0 0-16 0m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", active: currentPath.startsWith("/profile") || currentPath === "/login" || currentPath === "/register" },
+  ];
+
+  return (
+    <nav aria-label={text("Shop navigation")} className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e2e8e1] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,61,57,0.08)] backdrop-blur lg:hidden">
+      <ul className="mx-auto grid max-w-lg grid-cols-5">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link aria-current={link.active ? "page" : undefined} className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[10px] font-semibold ${link.active ? "text-[#d6533d]" : "text-[#71817b]"}`} href={link.href}>
+              <svg aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+                <path d={link.icon} />
+              </svg>
+              <span>{text(link.label)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

@@ -3,23 +3,11 @@ import OrganizationPicker from "@/components/admin/organization-picker";
 import WorkspacePage from "@/components/workspace-page";
 import { requireFeatureEnabled } from "@/lib/features";
 import { getOrganizationAdminContext } from "@/lib/admin-data";
-import { hasMinimumPlan } from "@/lib/account-plan";
 
 export default async function AdminReportsPage({ searchParams }) {
   await requireFeatureEnabled("admin-reports");
   const params = await searchParams;
   const context = await getOrganizationAdminContext(params?.organization_id || null);
-  if (!hasMinimumPlan(context.planTier, "business")) {
-    return (
-      <WorkspacePage description="Advanced reports are included with the Business account plan." title="Reports">
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm leading-6 text-amber-950">
-          <h2 className="font-semibold">Upgrade to Business for advanced reports</h2>
-          <p className="mt-1">Detailed registration and attendance reports are available with the Business plan.</p>
-          <Link className="mt-4 inline-flex rounded-md bg-[#173d39] px-4 py-2.5 text-sm font-bold text-white" href="/account-plan">View account plans</Link>
-        </section>
-      </WorkspacePage>
-    );
-  }
   if (!context.organization) {
     return <WorkspacePage description="Review real attendance and event reports." title="Reports" />;
   }

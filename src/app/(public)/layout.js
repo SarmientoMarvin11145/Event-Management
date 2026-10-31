@@ -1,4 +1,4 @@
-import { PublicFooter, PublicNavbar } from "@/components/public/site-chrome";
+import { PublicFooter, PublicMobileNav, PublicNavbar } from "@/components/public/site-chrome";
 
 export default function PublicLayout({ children }) {
   return (
@@ -6,6 +6,7 @@ export default function PublicLayout({ children }) {
       <PublicNavbar />
       {children}
       <PublicFooter />
+      <PublicMobileNav />
     </>
   );
 }

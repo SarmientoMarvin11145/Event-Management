@@ -32,6 +32,10 @@ export async function POST(request) {
 
   const session = webhookEvent.data;
   const attributes = session?.attributes;
+  const { supabaseUrl } = getSupabaseEnv();
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   const payment = Array.isArray(attributes?.payments)
     ? attributes.payments.find((item) => item?.attributes?.status === "paid")
     : null;
@@ -39,6 +43,10 @@ export async function POST(request) {
   const referenceNumber = attributes?.reference_number;
   const amount = paymentAttributes?.amount;
   const currency = paymentAttributes?.currency;
+  const paymentMethod = paymentAttributes?.source?.type
+    || paymentAttributes?.payment_method_used
+    || paymentAttributes?.payment_method_details?.type
+    || null;
 
   if (
     typeof session?.id !== "string" ||
@@ -50,10 +58,6 @@ export async function POST(request) {
     return Response.json({ error: "Incomplete PayMongo payment event." }, { status: 400 });
   }
 
-  const { supabaseUrl } = getSupabaseEnv();
-  const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
   const { data: transaction, error: transactionError } = await serviceClient
     .from("payment_transactions")
     .select("id, user_id, payment_type, plan_tier, amount, currency, status, events(title, start_date)")
@@ -68,6 +72,7 @@ export async function POST(request) {
     p_payment_id: payment.id,
     p_amount: amount,
     p_currency: currency,
+    p_payment_method: paymentMethod,
   });
   if (error) {
     console.error("Unable to apply PayMongo payment", error);

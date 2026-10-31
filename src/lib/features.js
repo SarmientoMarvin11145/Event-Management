@@ -15,6 +15,7 @@ export const FEATURE_DEFINITIONS = [
   { key: "admin-overview", label: "Admin overview", description: "Organization admin overview dashboard.", scope: "admin", defaultEnabled: true },
   { key: "admin-events", label: "Admin event management", description: "Create and manage organization events.", scope: "admin", defaultEnabled: true },
   { key: "admin-attendees", label: "Admin attendees", description: "View and manage event attendees.", scope: "admin", defaultEnabled: true },
+  { key: "admin-registration-management", label: "Registration management", description: "Manage event registrations, ticket refunds, and event check-in.", scope: "admin", defaultEnabled: true },
   { key: "admin-staff", label: "Admin staff", description: "Manage organization staff access.", scope: "admin", defaultEnabled: true },
   { key: "admin-venues", label: "Admin venues", description: "Manage venues used by events.", scope: "admin", defaultEnabled: true },
   { key: "admin-reports", label: "Admin reports", description: "Attendance and event reports.", scope: "admin", defaultEnabled: true },
@@ -31,7 +32,7 @@ export const FEATURE_DEFINITIONS = [
   { key: "seating-plans", label: "Seating plans", description: "Venue seat plans and event seat reservations.", scope: "admin", defaultEnabled: true },
   { key: "booth-management", label: "Booth management", description: "Exhibitor and booth workflows.", scope: "admin", defaultEnabled: false },
   { key: "facial-check-in", label: "Facial check-in", description: "Requires privacy review.", scope: "admin", defaultEnabled: false },
-  { key: "payment-gateway", label: "Paid checkout", description: "PayMongo test-mode checkout for event tickets and organization plans.", scope: "shared", defaultEnabled: true },
+  { key: "payment-gateway", label: "Paid checkout", description: "PayMongo test-mode checkout for event tickets.", scope: "shared", defaultEnabled: true },
   { key: "offline-mode", label: "Offline mode", description: "Offline event operations.", scope: "shared", defaultEnabled: false },
   { key: "advanced-analytics", label: "Advanced analytics", description: "Organization analytics.", scope: "admin", defaultEnabled: false },
 ];

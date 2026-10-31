@@ -1,6 +1,7 @@
 import Link from "next/link";
 import OrganizationPicker from "@/components/admin/organization-picker";
 import WorkspacePage from "@/components/workspace-page";
+import RegistrationRefundAction from "@/components/admin/registration-refund-action";
 import { recordAdminAttendance, updateAdminRegistration } from "@/app/(admin)/admin/actions";
 import { requireFeatureEnabled } from "@/lib/features";
 import { getOrganizationAdminContext } from "@/lib/admin-data";
@@ -52,6 +53,13 @@ export default async function AdminAttendeesPage({ searchParams }) {
   });
   if (attendeesError) throw new Error(`Unable to load event attendees: ${attendeesError.message}`, { cause: attendeesError });
   const attendeeList = attendeeRows || [];
+  const { data: paymentRows, error: paymentError } = attendeeList.length
+    ? await context.supabase.rpc("admin_list_registration_payment_statuses", {
+      p_registration_ids: attendeeList.map((attendee) => attendee.registration_id),
+    })
+    : { data: [], error: null };
+  if (paymentError) throw new Error(`Unable to load attendee payment statuses: ${paymentError.message}`, { cause: paymentError });
+  const paymentsByRegistration = new Map((paymentRows || []).map((payment) => [payment.registration_id, payment]));
   return (
     <WorkspacePage description={`Registrations across ${context.organization.name}. Contact details are shown only with attendee consent.`} title="Attendees">
       <div className="mb-5">
@@ -87,7 +95,7 @@ export default async function AdminAttendeesPage({ searchParams }) {
         {attendeeList.length ? (
           <table className="w-full min-w-[950px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr><th className="px-4 py-3">Attendee</th><th className="px-4 py-3">Event</th><th className="px-4 py-3">Registered</th><th className="px-4 py-3">Seat</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Check-in</th><th className="px-4 py-3">Actions</th></tr>
+              <tr><th className="px-4 py-3">Attendee</th><th className="px-4 py-3">Event</th><th className="px-4 py-3">Registered</th><th className="px-4 py-3">Seat</th><th className="px-4 py-3">Registration</th><th className="px-4 py-3">Payment</th><th className="px-4 py-3">Check-in</th><th className="px-4 py-3">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {attendeeList.map((attendee) => {
@@ -97,6 +105,18 @@ export default async function AdminAttendeesPage({ searchParams }) {
                 const canCheckIn = canManage || (
                   context.membership?.role === "check_in_staff" && eventAssignments.has(attendee.event_id)
                 );
+                const payment = paymentsByRegistration.get(attendee.registration_id);
+                const canConfirm = canManage
+                  && !["confirmed", "cancelled"].includes(attendee.registration_status)
+                  && (payment?.payment_status === "paid"
+                    || (!payment?.payment_status && Number(payment?.ticket_unit_price) === 0));
+                const canCancel = canManage
+                  && attendee.registration_status !== "cancelled"
+                  && !attendee.checked_in_at;
+                const canRefund = canManage
+                  && payment?.payment_status === "paid"
+                  && payment.refund_status !== "succeeded"
+                  && !attendee.checked_in_at;
                 return (
                   <tr key={attendee.registration_id}>
                     <td className="px-4 py-4">
@@ -112,22 +132,34 @@ export default async function AdminAttendeesPage({ searchParams }) {
                     <td className="px-4 py-4 text-slate-600">{attendee.seat_number || "—"}</td>
                     <td className="px-4 py-4"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{attendee.registration_status}</span></td>
                     <td className="px-4 py-4">
+                      <span className="text-xs font-semibold capitalize text-slate-700">{payment?.payment_status || (Number(payment?.ticket_unit_price) === 0 ? "Free" : "No payment")}</span>
+                      {payment?.payment_status && <p className="mt-1 text-xs text-slate-500">{new Intl.NumberFormat("en-PH", { style: "currency", currency: payment.payment_currency || "PHP" }).format(Number(payment.payment_amount) / 100)}</p>}
+                      {payment?.refund_status === "pending" && <p className="mt-1 text-xs text-amber-800">Refund processing</p>}
+                    </td>
+                    <td className="px-4 py-4">
                       {attendee.checked_in_at
                         ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: context.organization.timezone }).format(new Date(attendee.checked_in_at))
                         : "Not checked in"}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
-                        {canManage && attendee.registration_status !== "cancelled" && (
-                          <form action={updateAdminRegistration} className="flex items-center gap-1">
+                        {canConfirm && (
+                          <form action={updateAdminRegistration}>
                             <input name="registration_id" type="hidden" value={attendee.registration_id} />
-                            <label className="sr-only" htmlFor={`registration-status-${attendee.registration_id}`}>Update registration for {attendee.attendee_name}</label>
-                            <select className="rounded border border-slate-300 px-2 py-1 text-xs" defaultValue={attendee.registration_status} id={`registration-status-${attendee.registration_id}`} name="status">
-                              {["confirmed", "waitlisted", "cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}
-                            </select>
-                            <button className="text-xs font-semibold underline" type="submit">Save</button>
+                            <input name="status" type="hidden" value="confirmed" />
+                            <button className="rounded border border-emerald-300 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-50" type="submit">Confirm &amp; issue tickets</button>
                           </form>
                         )}
+                        {canCancel && (
+                          <form action={updateAdminRegistration}>
+                            <input name="registration_id" type="hidden" value={attendee.registration_id} />
+                            <input name="status" type="hidden" value="cancelled" />
+                            <label className="sr-only" htmlFor={`cancel-reason-${attendee.registration_id}`}>Cancellation reason</label>
+                            <input className="mb-1 w-44 rounded border border-slate-300 px-2 py-1 text-xs" id={`cancel-reason-${attendee.registration_id}`} maxLength={500} name="reason" placeholder="Cancellation reason" required />
+                            <button className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50" type="submit">Cancel</button>
+                          </form>
+                        )}
+                        {canRefund && <RegistrationRefundAction registrationId={attendee.registration_id} status={payment.refund_status} />}
                         {canCheckIn && attendee.registration_status === "confirmed" && !attendee.checked_in_at && (
                           <form action={recordAdminAttendance}>
                             <input name="registration_id" type="hidden" value={attendee.registration_id} />

@@ -1,10 +1,10 @@
-import PublicHome from "@/components/public/public-home";
+import FeaturedEvents from "@/components/public/featured-events";
 
 export const metadata = {
-  title: "KURO | Events, people, all in one place",
-  description: "Manage events and attendance for schools, restaurants, LGUs, webinars, and more with KURO.",
+  title: "KURO | Discover events",
+  description: "Find events you’ll love, compare ticket prices, and reserve your place with KURO.",
 };
 
 export default function Home() {
-  return <PublicHome />;
+  return <FeaturedEvents directory />;
 }

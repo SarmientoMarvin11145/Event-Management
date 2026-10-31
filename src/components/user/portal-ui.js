@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { addFavorite, registerForEvent, removeFavorite } from "@/app/(user)/actions";
+import { addFavorite, removeFavorite } from "@/app/(user)/actions";
 import {
   eventFromRelation,
   formatEventDate,
   organizationFromRelation,
 } from "@/lib/attendee-data";
+import { isEventRegistrationAvailable } from "@/lib/event-registration";
 
 export function PortalHeading({ eyebrow = "Your KURO account", title, description, action }) {
   return (
@@ -43,23 +44,8 @@ export function EventCard({ event: eventValue, registration, favorite = false })
   const now = new Date().getTime();
   const startTime = new Date(event.start_date).getTime();
   const endTime = new Date(event.end_date || startTime + 60 * 60 * 1000).getTime();
-  const registrationOpensAt = event.registration_opens_at
-    ? new Date(event.registration_opens_at).getTime()
-    : null;
-  const registrationDeadline = event.registration_deadline
-    ? new Date(event.registration_deadline).getTime()
-    : null;
-  const registrationWindowOpen = (registrationOpensAt === null || registrationOpensAt <= now)
-    && (registrationDeadline === null || registrationDeadline >= now);
-  const isUpcoming = Number.isFinite(startTime) && startTime > now;
+  const registrationAvailable = isEventRegistrationAvailable(event, now);
   const isActive = Number.isFinite(endTime) && endTime >= now;
-  const isPaid = Number(event.ticket_price || 0) > 0;
-  const canRegister = event.status === "published"
-    && isUpcoming
-    && isActive
-    && registrationWindowOpen
-    && !isPaid
-    && !event.venue_id;
 
   return (
     <article className="kuro-panel overflow-hidden rounded-md border border-[#dce4dc] bg-white">
@@ -82,15 +68,8 @@ export function EventCard({ event: eventValue, registration, favorite = false })
             <span className="rounded-md bg-[#edf4eb] px-3 py-2 text-xs font-bold text-[#245c55]">
               {registration.status.replaceAll("_", " ")}
             </span>
-          ) : event.status === "published" && isUpcoming && isActive && registrationWindowOpen && event.venue_id && event.slug ? (
-            <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>Choose a seat</Link>
-          ) : event.status === "published" && isUpcoming && isActive && registrationWindowOpen && isPaid && event.slug ? (
-            <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>{event.currency === "PHP" ? "Buy ticket" : "View event"}</Link>
-          ) : canRegister ? (
-            <form action={registerForEvent}>
-              <input name="event_id" type="hidden" value={event.id} />
-              <button className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" type="submit">Register</button>
-            </form>
+          ) : event.status === "published" && registrationAvailable && isActive && event.slug ? (
+            <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}/register`}>Register now</Link>
           ) : (
             <span className="rounded-md bg-[#f3f5f1] px-3 py-2 text-xs font-semibold text-[#61736e]">Registration unavailable</span>
           )}
