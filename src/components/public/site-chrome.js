@@ -9,8 +9,18 @@ import { setLocale, translate, useLocale } from "@/lib/locale";
 import SignOutButton from "@/components/sign-out-button";
 
 export function PublicNavbar() {
+  return (
+    <Suspense fallback={<header aria-hidden="true" className="h-[65px] border-b border-[#dfe7df] bg-[#fbfcf8]" />}>
+      <PublicNavbarContent />
+    </Suspense>
+  );
+}
+
+function PublicNavbarContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const locale = useLocale();
+  const pathname = usePathname();
+  const isEventDetailsPage = /^\/e\/[^/]+$/.test(pathname || "");
   const text = (value) => translate(locale, value);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +52,15 @@ export function PublicNavbar() {
     document.documentElement.lang = locale === "fil" ? "fil" : locale === "ceb" ? "ceb" : "en";
   }, [locale]);
 
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    function closeOnEscape(event) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+
   function toggleTheme() {
     const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = nextTheme;
@@ -54,7 +73,7 @@ export function PublicNavbar() {
   ];
 
   return (
-    <header className="kuro-nav sticky top-0 z-40 border-b border-[#dfe7df] bg-[#fbfcf8]/95 text-[#183c38] backdrop-blur">
+    <header className={`kuro-nav sticky top-0 z-40 border-b border-[#dfe7df] bg-[#fbfcf8]/95 text-[#183c38] backdrop-blur ${isEventDetailsPage ? "hidden lg:block" : ""}`}>
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
         <Link aria-label="KURO home" className="flex shrink-0 items-center gap-2.5" href="/">
           <span className="flex size-9 items-center justify-center rounded-md border border-[#dfe7df] bg-white p-0.5">
@@ -106,20 +125,32 @@ export function PublicNavbar() {
 
         <button
           aria-expanded={menuOpen}
+          aria-controls="public-mobile-menu"
           aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
-          className="flex size-10 items-center justify-center rounded-md border border-[#d5dfd7] text-lg font-bold text-[#183c38] lg:hidden"
+          className={`${menuOpen ? "relative z-[60]" : ""} flex size-10 items-center justify-center rounded-md border border-[#d5dfd7] text-lg font-bold text-[#183c38] transition hover:bg-[#edf2e9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#245c55] lg:hidden`}
           onClick={() => setMenuOpen(!menuOpen)}
           type="button"
         >
-          {menuOpen ? "×" : "☰"}
+          <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span>
         </button>
       </nav>
 
       {menuOpen && (
-        <div className="kuro-panel border-t border-[#dfe7df] bg-[#fbfcf8] px-5 py-4 lg:hidden">
-          <div className="grid grid-cols-2 gap-1">
+        <>
+          <button
+            aria-label={text("Dismiss navigation menu")}
+            className="fixed inset-0 z-40 cursor-default bg-[#102d2a]/25 lg:hidden"
+            onClick={() => setMenuOpen(false)}
+            tabIndex={-1}
+            type="button"
+          />
+          <div
+            className="kuro-panel absolute inset-x-0 top-full z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-[#dfe7df] bg-[#fbfcf8] px-5 py-4 shadow-xl lg:hidden"
+            id="public-mobile-menu"
+          >
+          <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
             {[...navLinks, { href: "/apply-organizer", label: "For organizers" }].map((link) => (
-            <Link className="rounded px-3 py-2.5 text-sm font-semibold text-[#526864] hover:bg-[#edf2e9]" href={link.href} key={link.href} onClick={() => setMenuOpen(false)}>
+            <Link className="rounded-lg px-3 py-3 text-sm font-semibold text-[#526864] transition hover:bg-[#edf2e9] focus-visible:outline-2 focus-visible:outline-[#245c55]" href={link.href} key={link.href} onClick={() => setMenuOpen(false)}>
                 {text(link.label)}
             </Link>
             ))}
@@ -137,7 +168,7 @@ export function PublicNavbar() {
           </div>
           <div className="mt-3 flex gap-3">
             {loading ? (
-              <Link className="flex-1 rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-bold pointer-events-none opacity-50" href="/login">{text("Log in")}</Link>
+              <Link className="flex-1 rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-bold pointer-events-none opacity-50" href="/login" onClick={() => setMenuOpen(false)}>{text("Log in")}</Link>
             ) : user ? (
               <>
                 <span className="text-xs text-[#526864]">{user.email}</span>
@@ -145,12 +176,13 @@ export function PublicNavbar() {
               </>
             ) : (
               <>
-                <Link className="flex-1 rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-bold" href="/login">{text("Log in")}</Link>
-                <Link className="flex-1 rounded-md bg-[#ed6148] px-4 py-2.5 text-center text-sm font-bold text-white" href="/register">{text("Get started")}</Link>
+                <Link className="flex-1 rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-bold" href="/login" onClick={() => setMenuOpen(false)}>{text("Log in")}</Link>
+                <Link className="flex-1 rounded-md bg-[#ed6148] px-4 py-2.5 text-center text-sm font-bold text-white" href="/register" onClick={() => setMenuOpen(false)}>{text("Get started")}</Link>
               </>
             )}
           </div>
-        </div>
+          </div>
+        </>
       )}
     </header>
   );
@@ -183,7 +215,7 @@ export function PublicFooter() {
   }, []);
 
   return (
-    <footer className="kuro-footer bg-[#142d2a] px-5 pb-24 pt-14 text-white sm:px-8 sm:pb-10">
+    <footer className="kuro-footer hidden bg-[#142d2a] px-5 pb-24 pt-14 text-white sm:px-8 sm:pb-10 lg:block">
       <div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-5">
         <div className="sm:col-span-2 lg:col-span-1">
           <Link className="inline-flex items-center gap-2.5 text-xl font-black tracking-[0.12em]" href="/">
@@ -231,7 +263,7 @@ export function PublicMobileNav() {
 
 function MobileNavPlaceholder() {
   return (
-    <nav aria-hidden="true" className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e2e8e1] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,61,57,0.08)] backdrop-blur lg:hidden">
+    <nav aria-hidden="true" className="fixed inset-x-0 bottom-0 z-[100] isolate border-t border-[#e2e8e1] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,61,57,0.08)] [transform:translateZ(0)] lg:hidden">
       <div className="mx-auto grid min-h-16 max-w-lg grid-cols-5" />
     </nav>
   );
@@ -242,6 +274,7 @@ function PublicMobileNavLinks() {
   const currentPath = pathname || "/";
   const locale = useLocale();
   const text = (value) => translate(locale, value);
+  if (/^\/e\/[^/]+$/.test(currentPath)) return null;
   const links = [
     { href: "/", label: "Home", icon: "M3 10.8 12 3l9 7.8v9.1a1.1 1.1 0 0 1-1.1 1.1h-5.2v-6.2h-5.4V21H4.1A1.1 1.1 0 0 1 3 19.9z", active: currentPath === "/" },
     { href: "/events", label: "Explore", icon: "M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21m-10.5-6a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9", active: currentPath.startsWith("/events") || currentPath.startsWith("/e/") },
@@ -251,7 +284,7 @@ function PublicMobileNavLinks() {
   ];
 
   return (
-    <nav aria-label={text("Shop navigation")} className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e2e8e1] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,61,57,0.08)] backdrop-blur lg:hidden">
+    <nav aria-label={text("Shop navigation")} className="fixed inset-x-0 bottom-0 z-[100] isolate border-t border-[#e2e8e1] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(23,61,57,0.08)] [transform:translateZ(0)] lg:hidden">
       <ul className="mx-auto grid max-w-lg grid-cols-5">
         {links.map((link) => (
           <li key={link.href}>

@@ -56,7 +56,7 @@ export default async function SettingsPage({ searchParams }) {
           </div>
           <p className="mt-3 text-xs leading-5 text-[#7a8b84]">These preferences are stored now; public profiles and organizer contact-sharing surfaces are not active yet.</p>
         </Panel>
-        <Panel>
+        <Panel id="appearance-language">
           <h2 className="text-lg font-bold text-[#173d39]">Appearance & language</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-semibold text-[#526864]">Theme

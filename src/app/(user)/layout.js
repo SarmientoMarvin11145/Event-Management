@@ -5,7 +5,6 @@ import { requireAuthenticatedUser } from "@/lib/authorization";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { throwOnSupabaseError } from "@/lib/attendee-data";
 import { filterLinksByFlags, getFeatureFlagMap } from "@/lib/features";
-import { getProfileWithPlan } from "@/lib/account-plan";
 import { Panel, StatusMessage } from "@/components/user/portal-ui";
 
 export const instant = false;
@@ -19,7 +18,6 @@ const links = [
   { href: "/certificates", label: "Certificates" },
   { href: "/favorites", label: "Favorites" },
   { href: "/profile", label: "Profile" },
-  { href: "/account-plan", label: "Account plan" },
   { href: "/settings", label: "Settings" },
   { href: "/help", label: "Help & support" },
   { href: "/messages", label: "Messages" },
@@ -27,6 +25,7 @@ const links = [
 ];
 
 const adminWorkspaceLink = { href: "/admin/dashboard", label: "Admin workspace" };
+const superadminWorkspaceLink = { href: "/superadmin/dashboard", label: "Admin workspace" };
 
 const linkFlags = {
   "/dashboard": "user-dashboard",
@@ -57,13 +56,12 @@ async function AuthenticatedUserLayout({ children }) {
   const [
     { data: settings, error: settingsError },
     { data: notifications, error: notificationsError },
-    profileResult,
+    { data: profile, error: profileError },
   ] = await Promise.all([
     supabase.from("attendee_settings").select("appearance_preferences").eq("user_id", user.id).maybeSingle(),
     supabase.from("notifications").select("id, title, message, link, is_read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
-    getProfileWithPlan(supabase, user.id, "role, full_name, avatar_url"),
+    supabase.from("profiles").select("role, full_name, avatar_url").eq("id", user.id).maybeSingle(),
   ]);
-  const { data: profile, error: profileError, planSchemaMissing } = profileResult;
   const portalSchemaMissing =
     isMissingTableFromSchemaCache(settingsError, "attendee_settings") ||
     isMissingTableFromSchemaCache(notificationsError, "notifications");
@@ -102,14 +100,18 @@ async function AuthenticatedUserLayout({ children }) {
   const userLinks = hasAdminAccess
     ? links.filter(({ href }) => href !== "/apply-organizer")
     : links;
-  const workspaceLinks = profile?.role === "admin" ? [...userLinks, adminWorkspaceLink] : userLinks;
+  const workspaceLinks = profile?.role === "admin"
+    ? [...userLinks, adminWorkspaceLink]
+    : profile?.role === "superadmin"
+      ? [...userLinks, superadminWorkspaceLink]
+      : userLinks;
   const visibleLinks = filterLinksByFlags(workspaceLinks, flagMap, {
     ...linkFlags,
     [adminWorkspaceLink.href]: "admin-overview",
   });
 
   return (
-    <WorkspaceShell accountPlanExpiresAt={profile?.plan_expires_at} accountPlanTier={profile?.plan_tier} initialLocale={locale} initialTheme={theme} links={visibleLinks} notifications={notifications || []} profileAvatarUrl={profile?.avatar_url} profileName={profile?.full_name || user.email || "Your account"} setupNotice={planSchemaMissing ? "Account-plan database setup is incomplete. Apply supabase/migrations/20261025100000_add_individual_account_plans_and_event_banners.sql in the Supabase SQL Editor, then refresh the API schema cache." : undefined} title="My workspace" userWorkspace>
+    <WorkspaceShell initialLocale={locale} initialTheme={theme} links={visibleLinks} notifications={notifications || []} profileAvatarUrl={profile?.avatar_url} profileName={profile?.full_name || user.email || "Your account"} title="My workspace" userWorkspace>
       {children}
     </WorkspaceShell>
   );

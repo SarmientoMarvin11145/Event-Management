@@ -33,7 +33,7 @@ const definitions = {
   organizations: ["Organizations", "Review tenant status and ownership."],
   users: ["All users", "Review accounts and manage user/admin access."],
   events: ["All events", "Review event listings and moderate content."],
-  revenue: ["Payment activity", "Review PayMongo test-mode event and organization-plan payments."],
+  revenue: ["Payment activity", "Review PayMongo test-mode event-ticket payments."],
   analytics: ["Platform analytics", "Aggregate signup, event, registration, and attendance data."],
   notifications: ["Notifications", "Send in-app announcements and review broadcast history."],
   emails: ["Email delivery", "Transactional email delivery is not configured in this preview."],
@@ -494,7 +494,7 @@ function RevenuePage({ rows, paidAmount, paidCount, pendingCount }) {
   }).format(Number(amount || 0) / 100);
   return (
     <div className="space-y-5">
-      <Notice tone="warning">This ledger contains PayMongo test-mode transactions only. Plan renewals are manual, and this view does not represent payouts, refunds, taxes, or live revenue.</Notice>
+      <Notice tone="warning">This ledger contains PayMongo test-mode event-ticket transactions only. It does not represent payouts, refunds, taxes, or live revenue.</Notice>
       <div className="grid gap-4 sm:grid-cols-3">
         <Metric label="Paid transactions" value={paidCount} detail="Verified by signed PayMongo webhooks." />
         <Metric label="Paid total" value={money(paidAmount, "PHP")} detail="From the 100 most recent transactions." accent="bg-emerald-500" />
@@ -502,11 +502,10 @@ function RevenuePage({ rows, paidAmount, paidCount, pendingCount }) {
       </div>
       <Panel title="Recent payments">
         {rows.length ? (
-          <Table headers={["Reference", "Type", "Organization", "Amount", "Status", "Created", "Paid"]}>
+          <Table headers={["Reference", "Organization", "Amount", "Status", "Created", "Paid"]}>
             {rows.map((row) => (
               <tr key={row.id}>
                 <Cell className="font-mono text-xs">{row.reference_number}</Cell>
-                <Cell>{row.payment_type === "event_ticket" ? "Event ticket" : `${row.plan_tier} plan`}</Cell>
                 <Cell>{row.organizations?.name || "—"}</Cell>
                 <Cell>{money(row.amount, row.currency)}</Cell>
                 <Cell><Badge tone={row.status === "paid" ? "green" : row.status === "pending" ? "amber" : row.status === "failed" ? "red" : "neutral"}>{row.status}</Badge></Cell>
@@ -621,7 +620,8 @@ async function loadSection(supabase, section, searchParams) {
     const rows = await query(
       supabase,
       supabase.from("payment_transactions")
-        .select("id, reference_number, payment_type, plan_tier, amount, currency, status, created_at, paid_at, organizations(name)")
+        .select("id, reference_number, amount, currency, status, created_at, paid_at, organizations(name)")
+        .eq("payment_type", "event_ticket")
         .order("created_at", { ascending: false })
         .limit(100),
       "Unable to load PayMongo payment activity",

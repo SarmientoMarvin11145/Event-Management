@@ -2,6 +2,7 @@ import { applyAsOrganizer } from "@/app/(user)/actions";
 import { getAttendeeSession, throwOnSupabaseError } from "@/lib/attendee-data";
 import { requireFeatureEnabled } from "@/lib/features";
 import { Panel, PortalHeading, StatusMessage } from "@/components/user/portal-ui";
+import { isMissingOrganizationMembershipFunction } from "@/lib/admin-data";
 import { redirect } from "next/navigation";
 
 export const instant = false;
@@ -13,7 +14,15 @@ export default async function ApplyOrganizerPage({ searchParams }) {
   const { supabase, user } = await getAttendeeSession();
   const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
   throwOnSupabaseError(profileError);
-  if (["admin", "superadmin"].includes(profile?.role)) redirect("/admin/dashboard");
+  if (profile?.role === "superadmin") redirect("/superadmin/dashboard");
+  const { data: memberships, error: membershipsError } = await supabase.rpc("get_my_organization_memberships");
+  if (isMissingOrganizationMembershipFunction(membershipsError)) {
+    throw new Error("Unable to determine your organization access. Apply the organization admin database migrations and refresh the Supabase API schema cache.", { cause: membershipsError });
+  }
+  if (membershipsError) {
+    throw new Error(`Unable to load your organization access: ${membershipsError.message}`, { cause: membershipsError });
+  }
+  if (memberships?.length) redirect("/admin/dashboard");
   const { data, error } = await supabase.from("organizer_applications").select("id, organization_name, organization_type, details, status, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
   throwOnSupabaseError(error);
   const applications = data || [];

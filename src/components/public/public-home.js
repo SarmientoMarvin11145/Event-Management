@@ -93,12 +93,6 @@ const faqs = [
   ["What does AI do in KURO?", "AI-assisted planning and attendee support are roadmap concepts. No AI feature is active in this preview."],
 ];
 
-const plans = [
-  { name: "Free", price: "₱0", detail: "Up to 3 active events, standard tools, and event banner uploads", action: "Start free" },
-  { name: "Pro", price: "₱999", unit: "/ month", detail: "Up to 10 active events, paid tickets, seating plans, and event banner uploads", action: "Sign in to upgrade", featured: true },
-  { name: "Business", price: "₱2,999", unit: "/ month", detail: "Unlimited active events, paid tickets, seating plans, advanced reports, and event banner uploads", action: "Sign in to upgrade" },
-];
-
 export default function PublicHome() {
   const locale = useLocale();
   const text = (value) => translate(locale, value);
@@ -385,33 +379,6 @@ export default function PublicHome() {
               {text("KURO is in development, so we are not publishing customer counts, ratings, testimonials, or platform totals yet. Public event listings will appear here as organizers publish them.")}
             </p>
           </div>
-        </div>
-      </section>
-
-      <section className="kuro-soft bg-[#edf2e9] px-5 py-16 sm:px-8 sm:py-20" data-scroll-reveal="up" id="pricing">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">{text("Pricing preview")}</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{text("Start small. Grow when you’re ready.")}</h2>
-            </div>
-            <p className="max-w-sm text-sm leading-6 text-[#647771]">{text("Plans apply to your individual account. Paid checkout is available in test mode; renewals are manual.")}</p>
-          </div>
-          <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-scroll-stagger>
-            {plans.map((plan) => (
-              <article className={`kuro-panel rounded-md border p-5 ${plan.featured ? "border-[#173d39] bg-[#173d39] text-white" : "border-[#d8e1d8] bg-[#fbfcf8] text-[#173d39]"}`} data-scroll-reveal="up" key={plan.name}>
-                <h3 className="text-sm font-bold">{text(plan.name)}</h3>
-                <p className="mt-5 text-3xl font-black">{plan.price}<span className="ml-1 text-sm font-medium">{plan.unit || ""}</span></p>
-                <p className={`mt-3 min-h-12 text-sm leading-6 ${plan.featured ? "text-white/75" : "text-[#647771]"}`}>{text(plan.detail)}</p>
-                {plan.name === "Free" ? (
-                  <Link className="mt-6 inline-flex w-full justify-center rounded bg-[#e96247] px-4 py-2.5 text-sm font-bold text-white" href="/register">{text(plan.action)}</Link>
-                ) : (
-                  <Link className="mt-6 inline-flex w-full justify-center rounded border border-current/20 px-4 py-2.5 text-sm font-bold hover:bg-white/10" href="/login">{text(plan.action)}</Link>
-                )}
-              </article>
-            ))}
-          </div>
-          <a className="mt-6 inline-flex text-sm font-bold text-[#245c55] hover:text-[#d6533d]" href="#features">{text("Compare the platform preview")} <span aria-hidden="true" className="ml-2">&#8594;</span></a>
         </div>
       </section>
 

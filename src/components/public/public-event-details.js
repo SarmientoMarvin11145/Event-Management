@@ -11,6 +11,7 @@ export default function PublicEventDetails({ slug }) {
   const [event, setEvent] = useState(null);
   const [status, setStatus] = useState("loading");
   const [seatMapState, setSeatMapState] = useState({ eventId: null, data: null, status: "idle" });
+  const [shareStatus, setShareStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -18,7 +19,7 @@ export default function PublicEventDetails({ slug }) {
     async function loadEvent() {
       const { data, error } = await supabase
         .from("events")
-        .select("id, slug, title, short_description, description, banner_url, start_date, end_date, venue_name, city, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)")
+        .select("id, slug, title, short_description, description, category, banner_url, start_date, end_date, venue_name, city, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)")
         .eq("slug", slug)
         .eq("status", "published")
         .maybeSingle();
@@ -116,9 +117,46 @@ export default function PublicEventDetails({ slug }) {
   const formattedPrice = event.starting_price === null
     ? null
     : new Intl.NumberFormat("en-PH", { style: "currency", currency: event.currency || "PHP" }).format(event.starting_price);
+  const mobileDateLabel = new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(event.start_date));
+  const locationLabel = [event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced";
+
+  async function shareEvent() {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: event.title, text: event.short_description || event.title, url });
+        setShareStatus("");
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setShareStatus("Event link copied");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error("Unable to share event.", error);
+      setShareStatus("Unable to share this event.");
+    }
+  }
+
   return (
-    <main className="kuro-page min-h-[70vh] bg-[#f7f8f4] pb-28 text-[#173d39] lg:pb-0">
-      <section className="relative isolate overflow-hidden bg-[#153a35]">
+    <main className="kuro-page min-h-[70vh] bg-[#f7f8f4] pb-24 text-[#173d39] lg:pb-0">
+      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[#e2e8e1] bg-white px-4 lg:hidden">
+        <Link aria-label="Back to events" className="flex size-10 items-center justify-center rounded-full text-2xl text-[#173d39] hover:bg-[#f4f6f1]" href="/events">
+          <span aria-hidden="true">&#8592;</span>
+        </Link>
+        <h1 className="text-sm font-bold text-[#173d39]">Event details</h1>
+        <div className="flex items-center gap-1">
+          <form action={addFavorite}>
+            <input name="event_id" type="hidden" value={event.id} />
+            <button aria-label="Save event" className="flex size-10 items-center justify-center rounded-full text-xl text-[#173d39] hover:bg-[#f4f6f1]" type="submit">&#9825;</button>
+          </form>
+          <button aria-label="Share event" className="flex size-10 items-center justify-center rounded-full text-xl text-[#173d39] hover:bg-[#f4f6f1]" onClick={shareEvent} type="button">&#8599;</button>
+        </div>
+      </div>
+      {shareStatus && <p aria-live="polite" className="sr-only" role="status">{shareStatus}</p>}
+      <section className="relative isolate hidden overflow-hidden bg-[#153a35] lg:block">
         {event.banner_url && (
           <div aria-label={`${event.title} event banner`} className="absolute inset-0 -z-20 bg-cover bg-center" role="img" style={{ backgroundImage: `url("${event.banner_url}")` }} />
         )}
@@ -143,15 +181,45 @@ export default function PublicEventDetails({ slug }) {
 
       <div className="mx-auto grid max-w-7xl items-start gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
         <article className="min-w-0">
-          <section className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5 shadow-sm sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">The experience</p>
-            <h2 className="mt-2 text-2xl font-bold text-[#173d39]">About this event</h2>
-            <div className="mt-5 whitespace-pre-wrap text-sm leading-7 text-[#526864]">
-              {event.description || "The organizer has not added an event description yet."}
+          <section aria-label={`${event.title} event banner`} className="relative mb-5 h-52 overflow-hidden rounded-2xl bg-gradient-to-br from-[#173d39] via-[#245c55] to-[#ed6148] shadow-sm sm:h-72 lg:hidden" role="img" style={event.banner_url ? { backgroundImage: `url("${event.banner_url}")`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}>
+            {!event.banner_url && <span className="absolute inset-0 bg-gradient-to-t from-[#102d2a]/60 to-transparent" />}
+          </section>
+          <section className="mb-6 lg:hidden">
+            {event.category && <p className="inline-flex rounded-full bg-[#eeeaff] px-3 py-1.5 text-xs font-bold capitalize text-[#5140b8]">{event.category.replaceAll("_", " ")}</p>}
+            <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[#17201f]">{event.title}</h2>
+            <div className="mt-4 space-y-4">
+              <p className="flex items-start gap-3 text-sm font-semibold text-[#293432]">
+                <span aria-hidden="true" className="text-lg leading-5 text-[#526864]">&#9719;</span>
+                <span>{mobileDateLabel}{event.end_date && ` – ${new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.end_date))}`}</span>
+              </p>
+              <p className="flex items-start gap-3 text-sm font-semibold text-[#293432]">
+                <span aria-hidden="true" className="text-lg leading-5 text-[#526864]">&#9906;</span>
+                <span>{locationLabel}</span>
+              </p>
+              <p className="flex items-start gap-3 text-sm font-bold text-[#17201f]">
+                <span aria-hidden="true" className="text-lg leading-5 text-[#526864]">&#9830;</span>
+                <span>{formattedPrice ? `${formattedPrice}${Number(event.starting_price) === 0 ? "" : " onwards"}` : "Tickets unavailable"}</span>
+              </p>
             </div>
           </section>
+          <section className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5 shadow-sm sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">The experience</p>
+            <h2 className="mt-2 text-xl font-bold text-[#173d39]">About</h2>
+            {event.description ? (
+              <>
+                <p className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-[#526864] lg:hidden">{event.description}</p>
+                <details className="mt-2 lg:hidden">
+                  <summary className="cursor-pointer text-sm font-bold text-[#5140b8]">Read more</summary>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#526864]">{event.description}</p>
+                </details>
+                <div className="mt-3 hidden whitespace-pre-wrap text-sm leading-7 text-[#526864] lg:block">{event.description}</div>
+              </>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-[#526864]">The organizer has not added an event description yet.</p>
+            )}
+          </section>
 
-          <section className="mt-5 grid gap-3 sm:grid-cols-2">
+          <section className="mt-5 hidden gap-3 sm:grid-cols-2 lg:grid">
             <div className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5">
               <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-xl bg-[#edf2e9] text-lg text-[#245c55]">&#9719;</span>
               <h2 className="mt-4 text-sm font-bold text-[#173d39]">Date and time</h2>
@@ -173,7 +241,7 @@ export default function PublicEventDetails({ slug }) {
           )}
         </article>
 
-        <aside className="kuro-panel rounded-2xl border border-[#dce4dc] bg-white p-5 shadow-xl shadow-[#173d39]/10 sm:p-6 lg:sticky lg:top-24">
+        <aside className="kuro-panel hidden rounded-2xl border border-[#dce4dc] bg-white p-5 shadow-xl shadow-[#173d39]/10 sm:p-6 lg:sticky lg:top-24 lg:block">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#d6533d]">Tickets</p>
@@ -190,7 +258,7 @@ export default function PublicEventDetails({ slug }) {
           </div>
           <div className="mt-5 space-y-3 border-y border-[#edf0eb] py-5 text-sm">
             <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#9719;</span><span>{dateLabel}</span></p>
-            <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#9906;</span><span>{[event.venue_name, event.city].filter(Boolean).join(", ") || "Venue to be announced"}</span></p>
+            <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#9906;</span><span>{locationLabel}</span></p>
             <p className="flex items-start gap-3 text-[#526864]"><span aria-hidden="true" className="mt-0.5 text-[#245c55]">&#10003;</span><span>{event.available_quantity == null ? "Tickets available" : `${Number(event.available_quantity).toLocaleString()} tickets remaining`}</span></p>
           </div>
           {registrationAvailable && ticketsAvailable ? (
@@ -209,7 +277,7 @@ export default function PublicEventDetails({ slug }) {
           </form>
         </aside>
       </div>
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-[#e2e8e1] bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(23,61,57,0.10)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2e8e1] bg-white/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(23,61,57,0.10)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[#71817b]">Tickets from</p>
@@ -217,7 +285,7 @@ export default function PublicEventDetails({ slug }) {
           </div>
           {registrationAvailable && ticketsAvailable ? (
             <Link className="shrink-0 rounded-xl bg-[#ed6148] px-5 py-3 text-sm font-bold text-white" href={`/e/${event.slug}/register`}>
-              {Number(event.starting_price) === 0 ? "Reserve ticket" : "Get tickets"}
+              Book tickets
             </Link>
           ) : (
             <span className="shrink-0 rounded-xl bg-[#f3f5f1] px-4 py-3 text-xs font-semibold text-[#61736e]">Unavailable</span>

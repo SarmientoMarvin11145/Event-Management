@@ -3,23 +3,24 @@ import Image from "next/image";
 import SignOutButton from "@/components/sign-out-button";
 import ThemeSync from "@/components/user/theme-sync";
 import NotificationMenu from "@/components/user/notification-menu";
-import AccountPlanBadge from "@/components/account-plan-badge";
 
 const mobileLinks = [
   { href: "/dashboard", label: "Home", icon: "⌂" },
   { href: "/my-tickets", label: "Tickets", icon: "▣" },
   { href: "/browse-events", label: "Discover", icon: "⌕" },
-  { href: "/notifications", label: "Alerts", icon: "♢" },
+  { href: "/favorites", label: "Saved", icon: "♡" },
   { href: "/profile", label: "Profile", icon: "◉" },
 ];
 
-export default function WorkspaceShell({ title, links, children, initialTheme = "system", initialLocale = "en", notifications = [], profileName, profileAvatarUrl, profileRole, accountPlanTier = "free", accountPlanExpiresAt, setupNotice, userWorkspace = false }) {
+export default function WorkspaceShell({ title, links, children, initialTheme = "system", initialLocale = "en", notifications = [], profileName, profileAvatarUrl, profileRole, setupNotice, userWorkspace = false }) {
+  const adminWorkspaceLink = links.find(({ href }) => href === "/admin/dashboard" || href === "/superadmin/dashboard");
+
   return (
     <div className={userWorkspace ? "kuro-page min-h-screen bg-[#f6f7f2] text-[#193532]" : "kuro-page min-h-screen bg-slate-50"}>
       <ThemeSync locale={userWorkspace ? initialLocale : undefined} theme={initialTheme} />
       <header className={userWorkspace ? "kuro-nav sticky top-0 z-20 border-b border-[#dce4dc] bg-white" : "kuro-nav sticky top-0 z-20 border-b border-slate-200 bg-white"}>
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-3 sm:px-8">
-          <Link className={userWorkspace ? "text-lg font-bold tracking-tight text-[#173d39]" : "text-lg font-bold tracking-tight text-slate-950"} href="/">
+        <div className={userWorkspace ? "mx-auto flex max-w-7xl flex-row items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-8" : "mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-3 sm:px-8"}>
+          <Link className={userWorkspace ? "shrink-0 text-lg font-bold tracking-tight text-[#173d39]" : "text-lg font-bold tracking-tight text-slate-950"} href="/">
             <span className="inline-flex items-center gap-2">
               <span className={userWorkspace ? "flex size-8 items-center justify-center rounded-md border border-[#dce4dc] bg-white p-0.5" : "flex size-8 items-center justify-center rounded-md border border-slate-200 bg-white p-0.5"}>
                 <Image alt="" aria-hidden="true" className="size-full object-contain" height={32} priority src="/kuro logo-edited.png" unoptimized width={32} />
@@ -28,12 +29,15 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
             </span>
             {!userWorkspace && <span className="ml-2 text-sm font-medium text-slate-500">{title}</span>}
           </Link>
-          <div className="flex items-center gap-3">
+          <div className={userWorkspace ? "flex min-w-0 items-center justify-end gap-2 sm:gap-3" : "flex items-center gap-3"}>
             {userWorkspace && (
               <>
-                {links.some(({ href }) => href === "/admin/dashboard") && (
-                  <Link className="kuro-nav-control rounded-md border border-[#dce4dc] px-3 py-2 text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]" href="/admin/dashboard">
-                    Admin workspace
+                {adminWorkspaceLink && (
+                  <Link aria-label="Admin workspace" className="kuro-nav-control hidden shrink-0 items-center justify-center rounded-md bg-[#173d39] text-white transition hover:bg-[#245c55] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed6148] md:inline-flex md:h-auto md:w-auto md:whitespace-nowrap md:px-3 md:py-2 md:text-sm md:font-semibold" href={adminWorkspaceLink.href} title="Admin workspace">
+                    <svg aria-hidden="true" className="size-5 md:hidden" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-4h4v4" />
+                    </svg>
+                    <span className="hidden md:inline">Admin workspace</span>
                   </Link>
                 )}
                 <form action="/browse-events" className="hidden w-56 md:flex" role="search">
@@ -41,7 +45,7 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                   <input className="kuro-input min-w-0 flex-1 rounded-l-md border border-[#cbd8d1] bg-white px-3 py-2 text-sm" id="workspace-search" name="q" placeholder="Search events..." type="search" />
                   <button className="rounded-r-md bg-[#173d39] px-3 text-xs font-bold text-white" type="submit">Search</button>
                 </form>
-                <NotificationMenu notifications={notifications} />
+                <NotificationMenu compact={userWorkspace} notifications={notifications} />
                 <Link aria-label="Messages" className="kuro-nav-control hidden rounded-md border border-[#dce4dc] px-3 py-2 text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1] sm:inline-flex" href="/messages">Inbox</Link>
                 <details className="relative hidden sm:block">
                   <summary className="kuro-nav-control cursor-pointer list-none rounded-md border border-[#dce4dc] px-3 py-2 text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]">Account ▾</summary>
@@ -68,7 +72,6 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                     <span className="block text-xs capitalize text-slate-500">{profileRole || "Administrator"}</span>
                   </span>
                 </Link>
-                <AccountPlanBadge expiresAt={accountPlanExpiresAt} tier={accountPlanTier} />
                 <details className="relative">
                   <summary className="kuro-nav-control cursor-pointer list-none rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     {profileName || "Account"} ▾
@@ -84,9 +87,10 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                 </details>
               </>
             )}
-            {userWorkspace && profileName && (
-              <>
-                <Link aria-label="My profile" className="flex items-center gap-2 rounded-md border border-[#dce4dc] px-2 py-1.5 text-[#245c55] hover:bg-[#f4f6f1]" href="/profile">
+            {userWorkspace ? (
+              <div className="hidden items-center gap-3 md:flex">
+                {profileName && (
+                  <Link aria-label="My profile" className="flex shrink-0 items-center gap-2 rounded-md border border-[#dce4dc] px-1.5 py-1.5 text-[#245c55] hover:bg-[#f4f6f1] sm:px-2" href="/profile">
                   <span
                     aria-label={profileName}
                     className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8eee7] bg-cover bg-center text-xs font-bold"
@@ -95,12 +99,14 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                   >
                     {!profileAvatarUrl && (profileName.trim()[0]?.toUpperCase() || "U")}
                   </span>
-                  <span className="hidden max-w-32 truncate text-sm font-semibold sm:block">{profileName}</span>
-                </Link>
-                <AccountPlanBadge expiresAt={accountPlanExpiresAt} tier={accountPlanTier} userWorkspace />
-              </>
+                    <span className="max-w-32 truncate text-sm font-semibold">{profileName}</span>
+                  </Link>
+                )}
+                <SignOutButton className="shrink-0 whitespace-nowrap px-3 text-xs sm:px-4 sm:text-sm" />
+              </div>
+            ) : (
+              <SignOutButton />
             )}
-            <SignOutButton />
           </div>
         </div>
       </header>
@@ -126,7 +132,7 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
         <main className="min-w-0">{children}</main>
       </div>
       {userWorkspace && (
-        <nav aria-label="Mobile navigation" className="kuro-nav fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[#dce4dc] bg-white px-1 py-2 md:hidden">
+        <nav aria-label="Mobile navigation" className="kuro-nav fixed inset-x-0 bottom-0 z-[100] isolate grid grid-cols-5 border-t border-[#dce4dc] bg-white px-1 pb-[env(safe-area-inset-bottom)] pt-2 [transform:translateZ(0)] md:hidden">
           {mobileLinks.map(({ href, icon, label }) => (
             <Link className="flex flex-col items-center gap-1 rounded-md px-1 py-1 text-[10px] font-semibold text-[#526864] hover:text-[#d6533d]" href={href} key={href}>
               <span aria-hidden="true" className="text-lg leading-none">{icon}</span>{label}

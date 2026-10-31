@@ -60,11 +60,16 @@ export async function POST(request) {
 
   const { data: transaction, error: transactionError } = await serviceClient
     .from("payment_transactions")
-    .select("id, user_id, payment_type, plan_tier, amount, currency, status, events(title, start_date)")
+    .select("id, user_id, payment_type, amount, currency, status, events(title, start_date)")
     .eq("reference_number", referenceNumber)
     .maybeSingle();
   if (transactionError) {
     console.error("Unable to load PayMongo transaction email details", transactionError);
+    return Response.json({ error: "Could not verify the payment order." }, { status: 500 });
+  }
+  if (!transaction || transaction.payment_type !== "event_ticket") {
+    console.error("PayMongo payment did not match a supported event-ticket order", { referenceNumber });
+    return Response.json({ received: true, applied: false });
   }
   const { data, error } = await serviceClient.rpc("complete_paymongo_payment", {
     p_reference_number: referenceNumber,
@@ -88,21 +93,15 @@ export async function POST(request) {
     if (authUserError) {
       console.error("Unable to load payment recipient", authUserError);
     } else if (authUserResult.user?.email) {
-      const isEventTicket = transaction.payment_type === "event_ticket";
-      let shouldSend = true;
-      if (isEventTicket) {
-        const { data: settings, error: settingsError } = await serviceClient
-          .from("attendee_settings")
-          .select("notification_preferences")
-          .eq("user_id", transaction.user_id)
-          .maybeSingle();
-        if (settingsError) {
-          console.error("Unable to load payment email preferences", settingsError);
-          shouldSend = false;
-        } else {
-          shouldSend = settings?.notification_preferences?.registration_confirmations !== false;
-        }
+      const { data: settings, error: settingsError } = await serviceClient
+        .from("attendee_settings")
+        .select("notification_preferences")
+        .eq("user_id", transaction.user_id)
+        .maybeSingle();
+      if (settingsError) {
+        console.error("Unable to load payment email preferences", settingsError);
       }
+      const shouldSend = !settingsError && settings?.notification_preferences?.registration_confirmations !== false;
 
       if (shouldSend) {
         const event = Array.isArray(transaction.events) ? transaction.events[0] : transaction.events;
@@ -110,12 +109,8 @@ export async function POST(request) {
           style: "currency",
           currency: transaction.currency,
         }).format(Number(transaction.amount) / 100);
-        const subject = isEventTicket
-          ? `KURO ticket confirmed: ${event?.title || "Event"}`
-          : `KURO ${transaction.plan_tier} plan payment confirmed`;
-        const text = isEventTicket
-          ? `Your payment of ${paidAmount} was confirmed and your registration for ${event?.title || "the event"} is confirmed.${event?.start_date ? `\nEvent date: ${new Intl.DateTimeFormat("en-PH", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(event.start_date))}` : ""}\n\nYour ticket details are available in your KURO workspace.`
-          : `Your payment of ${paidAmount} was confirmed. Your KURO ${transaction.plan_tier} account plan is now active for one month.`;
+        const subject = `KURO ticket confirmed: ${event?.title || "Event"}`;
+        const text = `Your payment of ${paidAmount} was confirmed and your registration for ${event?.title || "the event"} is confirmed.${event?.start_date ? `\nEvent date: ${new Intl.DateTimeFormat("en-PH", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(event.start_date))}` : ""}\n\nYour ticket details are available in your KURO workspace.`;
         try {
           await sendSendGridEmail({ to: authUserResult.user.email, subject, text });
         } catch (emailError) {

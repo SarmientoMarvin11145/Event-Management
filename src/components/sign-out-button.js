@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function SignOutButton() {
+export default function SignOutButton({ className = "", containerClassName = "flex flex-col items-end gap-2", icon, label = "Sign out", trailingIcon }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -24,14 +24,16 @@ export default function SignOutButton() {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className={containerClassName}>
       <button
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+        className={`rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 ${className}`}
         disabled={isPending}
         onClick={handleSignOut}
         type="button"
       >
-        {isPending ? "Signing out..." : "Sign out"}
+        {icon}
+        <span className="flex-1">{isPending ? "Signing out..." : label}</span>
+        {trailingIcon}
       </button>
       {error && (
         <p aria-live="polite" className="text-sm text-rose-700" role="alert">

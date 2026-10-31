@@ -45,11 +45,15 @@ to allow attendees to save events while registration remains open or the event
 has not ended.
 
 The feature, AI, integrations, and resource sections are product previews.
-Individual account plans are Free (up to 3 active events), Pro (up to 10 active
-events, paid tickets, and seating), and Business (unlimited active events,
-paid tickets, seating, and advanced reports). Event banner uploads are
-available on every plan. Paid account plans use PayMongo test checkout and
-require manual renewal; live payments are not enabled.
+KURO has no account tiers or account subscription billing. All organizations
+can publish events, configure ticket options and seating, and use the same
+workspace features. Paid event-ticket checkout remains limited to PayMongo test
+mode.
+
+For Supabase projects that applied the previous account-plan migrations, apply
+[`supabase/migrations/20261101003000_remove_account_tiers.sql`](./supabase/migrations/20261101003000_remove_account_tiers.sql)
+to remove the plan fields and subscription functions and replace tier-based
+event restrictions.
 
 Apply `supabase/migrations/20261016100000_record_policy_consent.sql` after the
 profile migration to store the Terms and Privacy policy versions and acceptance
@@ -135,10 +139,11 @@ admin migrations, then apply
 `20261024230000_allow_paid_event_publishing.sql` to allow PHP-priced events to
 be published with PayMongo test checkout. Apply
 `20261025100000_add_individual_account_plans_and_event_banners.sql` after it to
-enable individual plan billing, active-event limits, plan-gated features, and
-the `event-banners` storage bucket. Events count toward the plan of the user
-who created them. Paid tickets are confirmed only after the payment webhook
-verifies the transaction.
+add event ownership and the `event-banners` storage bucket. Apply
+`20261101003000_remove_account_tiers.sql` after the remaining migrations to
+remove legacy account-plan fields and tier-based publishing restrictions.
+Paid tickets are confirmed only after the payment webhook verifies the
+transaction.
 Apply `20261030240000_event_ticket_plans_and_registration_tickets.sql` after
 the event, registration, seating, and PayMongo migrations to add configurable
 ticket plans, capacity-safe orders, attendee contact snapshots, and QR tickets.

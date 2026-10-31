@@ -38,7 +38,12 @@ export async function POST(req) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: google("gemini-2.5-flash"),
+    model: google("gemini-3.8-flash"),
+    maxRetries: 0,
+    abortSignal: AbortSignal.timeout(20_000),
+    onError({ error }) {
+      console.error("KURO Assistant model request failed.", error);
+    },
     system:
       "You are KURO Assistant. Help users with events, tickets, certificates, " +
       "and account questions in this app. Reply in the language the user writes in " +
@@ -63,5 +68,12 @@ export async function POST(req) {
     },
   });
 
-  return createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) });
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      onError() {
+        return "KURO Assistant is temporarily unable to connect. Please check your connection and try again.";
+      },
+    }),
+  });
 }

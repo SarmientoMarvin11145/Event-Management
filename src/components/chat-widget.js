@@ -15,14 +15,30 @@ function MessageText({ parts }) {
 export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const { messages, sendMessage, status, error } = useChat();
   const listRef = useRef(null);
   const containerRef = useRef(null);
+  const hintShownRef = useRef(false);
   const busy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
     if (open && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, open, busy]);
+
+  useEffect(() => {
+    if (open || hintShownRef.current) return undefined;
+    let dismissTimer;
+    const showTimer = window.setTimeout(() => {
+      hintShownRef.current = true;
+      setShowHint(true);
+      dismissTimer = window.setTimeout(() => setShowHint(false), 5000);
+    }, 900);
+    return () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(dismissTimer);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +64,7 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3" ref={containerRef}>
+    <div className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 sm:bottom-5 sm:right-5" ref={containerRef}>
       {open && (
         <div className="kuro-panel flex h-[28rem] w-[calc(100vw-2.5rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-[#dce4dc] bg-white shadow-2xl">
           <div className="flex items-center justify-between gap-3 border-b border-[#e8eee7] bg-[#173d39] px-4 py-3 text-white">
@@ -86,7 +102,7 @@ export default function ChatWidget() {
             {busy && <p className="text-xs text-[#7a8b84]">KURO Assistant is typing…</p>}
             {error && (
               <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                Something went wrong. Please try again or contact support.
+                KURO Assistant is temporarily unavailable. Please check your connection and try again.
               </p>
             )}
           </div>
@@ -111,10 +127,23 @@ export default function ChatWidget() {
         </div>
       )}
 
+      {showHint && !open && (
+        <p
+          aria-live="polite"
+          className="max-w-56 rounded-2xl rounded-br-sm border border-[#dce4dc] bg-white px-4 py-2.5 text-sm font-semibold text-[#173d39] shadow-lg"
+          role="status"
+        >
+          Need help finding an event? Ask KURO!
+        </p>
+      )}
+
       <button
         aria-label={open ? "Hide KURO Assistant" : "Open KURO Assistant"}
-        className="flex size-14 items-center justify-center rounded-full bg-[#ed6148] text-2xl text-white shadow-xl transition hover:bg-[#d74d37]"
-        onClick={() => setOpen(!open)}
+        className="flex size-14 items-center justify-center rounded-full bg-[#ed6148] text-2xl text-white shadow-xl transition hover:bg-[#d74d37] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#245c55]"
+        onClick={() => {
+          setShowHint(false);
+          setOpen(!open);
+        }}
         type="button"
       >
         {open ? "×" : "💬"}

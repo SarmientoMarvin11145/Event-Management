@@ -18,6 +18,22 @@ body {
   font-family: var(--font-geist-sans), sans-serif;
 }
 
+@media (max-width: 1023px) {
+  .kuro-footer {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .kuro-page:has([data-profile-screen]) > header.kuro-nav {
+    display: none;
+  }
+
+  .kuro-page:has([data-profile-screen]) > div {
+    padding-top: 0;
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }
