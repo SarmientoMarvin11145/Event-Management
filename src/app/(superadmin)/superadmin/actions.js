@@ -1,10 +1,13 @@
 "use server";
 
+import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/lib/authorization";
 import { FEATURE_KEY_SET } from "@/lib/features";
+import { sendSendGridEmail } from "@/lib/sendgrid";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseEnv } from "@/lib/supabase-env";
 
 async function getSuperadminClient() {
   const user = await requireAuthenticatedUser(["superadmin"]);
@@ -36,6 +39,14 @@ async function writeAudit(supabase, action, entityType, entityId, details = {}) 
 
 function refreshConsole(paths = []) {
   for (const path of ["/superadmin", "/superadmin/dashboard", ...paths]) revalidatePath(path);
+}
+
+function createServiceClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured.");
+  return createClient(getSupabaseEnv().supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 export async function updateOrganization(formData) {
@@ -75,12 +86,41 @@ export async function reviewOrganizerApplication(formData) {
   const applicationId = requiredText(formData, "application_id", "Application");
   const decision = String(formData.get("decision") || "");
   const note = optionalText(formData, "note", 2000);
+  const { data: application, error: applicationError } = await supabase
+    .from("organizer_applications")
+    .select("id, user_id, organization_name, status")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (applicationError) throw new Error(`Could not load organizer application: ${applicationError.message}`, { cause: applicationError });
+  if (!application) throw new Error("Organizer application not found.");
   const { error } = await supabase.rpc("superadmin_review_application", {
     p_application_id: applicationId,
     p_decision: decision,
     p_note: note,
   });
   if (error) throw new Error(`Could not review application: ${error.message}`, { cause: error });
+  if (decision !== "under_review" && decision !== application.status) {
+    try {
+      const serviceClient = createServiceClient();
+      const { data: authUser, error: authUserError } = await serviceClient.auth.admin.getUserById(application.user_id);
+      if (authUserError) throw authUserError;
+      if (authUser.user?.email) {
+        const status = decision.replaceAll("_", " ");
+        await sendSendGridEmail({
+          to: authUser.user.email,
+          subject: `KURO organizer application update: ${application.organization_name}`,
+          text: [
+            `Your organizer application for ${application.organization_name} has been updated: ${status}.`,
+            note ? `Review note: ${note}` : "",
+            decision === "approved" ? "Your KURO account now has access to the organization workspace." : "",
+            "Sign in to KURO to view your application status.",
+          ].filter(Boolean).join("\n\n"),
+        });
+      }
+    } catch (emailError) {
+      console.error("Unable to send organizer application status email", emailError);
+    }
+  }
   refreshConsole(["/superadmin/applications", "/superadmin/organizations", "/superadmin/users"]);
 }
 

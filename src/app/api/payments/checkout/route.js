@@ -57,6 +57,15 @@ export async function POST(request) {
       p_event_id: body.eventId,
     });
   } else if (
+    body?.type === "user_subscription" &&
+    typeof body.planTier === "string"
+  ) {
+    paymentType = "user_subscription";
+    orderResult = await serviceClient.rpc("create_paymongo_user_subscription_order", {
+      p_user_id: user.id,
+      p_plan_tier: body.planTier,
+    });
+  } else if (
     body?.type === "organization_subscription" &&
     typeof body.organizationId === "string" &&
     typeof body.planTier === "string"

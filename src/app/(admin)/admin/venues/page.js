@@ -1,30 +1,43 @@
 import { assignVenueToEvent } from "@/app/(admin)/admin/actions";
 import SeatPlanEditor from "@/components/admin/seat-plan-editor";
 import { requireFeatureEnabled } from "@/lib/features";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getOrganizationAdminContext } from "@/lib/admin-data";
+import { hasMinimumPlan } from "@/lib/account-plan";
+import Link from "next/link";
+import WorkspacePage from "@/components/workspace-page";
 
 export const metadata = { title: "Venues and seating | KURO" };
 
-export default async function AdminVenuesPage() {
+export default async function AdminVenuesPage({ searchParams }) {
   await requireFeatureEnabled("admin-venues");
   await requireFeatureEnabled("seating-plans");
-  const supabase = await createSupabaseServerClient();
+  const params = await searchParams;
+  const context = await getOrganizationAdminContext(params?.organization_id || null);
+  if (!hasMinimumPlan(context.planTier, "pro")) {
+    return (
+      <WorkspacePage description="Seating plans are included with Pro and Business account plans." title="Venues">
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm leading-6 text-amber-950">
+          <h2 className="font-semibold">Upgrade to use seating plans</h2>
+          <p className="mt-1">Your Free plan can create standard events. Pro and Business unlock venue seating plans.</p>
+          <Link className="mt-4 inline-flex rounded-md bg-[#173d39] px-4 py-2.5 text-sm font-bold text-white" href="/account-plan">View account plans</Link>
+        </section>
+      </WorkspacePage>
+    );
+  }
+  const supabase = context.supabase;
   const now = new Date().toISOString();
   const [
-    { data: organizations, error: organizationsError },
     { data: venues, error: venuesError },
     { data: events, error: eventsError },
   ] = await Promise.all([
-    supabase.from("organizations").select("id, name").order("name"),
     supabase.from("venues").select("id, organization_id, name, seat_plan").order("name"),
     supabase.from("events").select("id, organization_id, title, start_date, status, venue_id").gte("start_date", now).order("start_date"),
   ]);
 
-  if (organizationsError) throw new Error(`Unable to load your organizations: ${organizationsError.message}`, { cause: organizationsError });
   if (venuesError) throw new Error(`Unable to load venue seat plans: ${venuesError.message}`, { cause: venuesError });
   if (eventsError) throw new Error(`Unable to load organization events: ${eventsError.message}`, { cause: eventsError });
 
-  const ownedOrganizations = organizations || [];
+  const ownedOrganizations = context.organizations || [];
   const savedVenues = venues || [];
   const upcomingEvents = events || [];
 

@@ -31,7 +31,7 @@ export default async function MyEventsPage() {
           <h2 className="text-xl font-bold text-[#173d39]">Interested</h2>
           <p className="mt-1 text-sm text-[#61736e]">Events you saved for later.</p>
         </div>
-        {saved.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{saved.map((item) => <EventCard event={item.events} favorite key={item.id} />)}</div> : <EmptyState title="Nothing saved yet" description="Save public events to keep them in your personal list." href="/events" />}
+        {saved.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{saved.map((item) => <EventCard event={item.events} favorite key={item.id} />)}</div> : <EmptyState title="Nothing saved yet" description="Save public events to keep them in your personal list." href="/browse-events" />}
       </section>
     </div>
   );

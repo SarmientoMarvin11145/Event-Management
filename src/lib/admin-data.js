@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/lib/authorization";
+import { effectivePlanTier, getProfileWithPlan } from "@/lib/account-plan";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export async function getOrganizationAdminContext(selectedOrganizationId = null) {
@@ -9,7 +10,7 @@ export async function getOrganizationAdminContext(selectedOrganizationId = null)
     { data: profile, error: profileError },
     { data: memberships, error: membershipsError },
   ] = await Promise.all([
-    supabase.from("profiles").select("full_name, avatar_url, role").eq("id", user.id).maybeSingle(),
+    getProfileWithPlan(supabase, user.id, "full_name, avatar_url, role"),
     supabase.rpc("get_my_organization_memberships"),
   ]);
 
@@ -48,6 +49,8 @@ export async function getOrganizationAdminContext(selectedOrganizationId = null)
     supabase,
     user,
     profile,
+    planTier: effectivePlanTier(profile?.plan_tier, profile?.plan_expires_at),
+    planExpiresAt: profile?.plan_expires_at,
     organizations: accessibleOrganizations,
     memberships: membershipList,
     organization: selectedOrganization,

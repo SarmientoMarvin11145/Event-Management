@@ -46,6 +46,11 @@ export default async function MyTicketsPage({ searchParams }) {
           PayMongo returned you from checkout. Your ticket appears here once the signed payment confirmation is received.
         </p>
       )}
+      {params?.email === "failed" && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950" role="status">
+          Your registration is saved, but we could not send its confirmation email. Your ticket details are available below.
+        </p>
+      )}
       <nav aria-label="Ticket categories" className="flex flex-wrap gap-2">
         {tabs.map(([id, label]) => (
           <Link aria-current={activeTab === id ? "page" : undefined} className={`rounded-md border px-4 py-2 text-sm font-semibold ${activeTab === id ? "border-[#173d39] bg-[#173d39] text-white" : "border-[#cbd8d1] bg-white text-[#526864] hover:border-[#245c55]"}`} href={`/my-tickets?tab=${id}`} key={id}>{label}</Link>
@@ -98,7 +103,7 @@ export default async function MyTicketsPage({ searchParams }) {
                         Paid ticket cancellation and refunds are not available online. Contact the event organizer for assistance.
                       </p>
                     )}
-                    <Link className="rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]" href="/events">Browse events</Link>
+                    <Link className="rounded-md border border-[#cbd8d1] px-4 py-2.5 text-center text-sm font-semibold text-[#245c55] hover:bg-[#f4f6f1]" href="/browse-events">Browse events</Link>
                   </div>
                 </div>
               </Panel>
@@ -108,7 +113,7 @@ export default async function MyTicketsPage({ searchParams }) {
       ) : (
         <EmptyState title={activeTab === "upcoming" ? "No upcoming tickets" : `No ${activeTab} tickets`} description={activeTab === "upcoming" ? "When you register for an event, your ticket details will appear here." : "Tickets that match this category will appear here."} />
       )}
-      <p className="text-xs leading-5 text-[#7a8b84]">Ticket emails, Apple/Google Wallet, ticket transfers, and upgrades are not integrated in this preview.</p>
+      <p className="text-xs leading-5 text-[#7a8b84]">Registration and payment confirmation emails are sent when enabled in your notification settings. Apple/Google Wallet, ticket transfers, and upgrades are not integrated in this preview.</p>
     </div>
   );
 }

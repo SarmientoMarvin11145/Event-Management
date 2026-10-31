@@ -75,7 +75,7 @@ export default async function AdminEventDetailsPage({ params, searchParams }) {
             </form>
           </div>
           <h2 className="mb-3 text-lg font-semibold text-slate-900">Edit event details</h2>
-          <EventForm event={event} onlineMeetingUrl={meetingUrl || ""} organization={context.organization} venues={venues || []} />
+          <EventForm event={event} onlineMeetingUrl={meetingUrl || ""} organization={context.organization} planTier={context.planTier} venues={venues || []} />
         </>
       ) : (
         <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">You have view-only access to this event.</p>

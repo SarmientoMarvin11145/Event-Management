@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { registerForEvent } from "@/app/(user)/actions";
 
-export default function EventSeatMap({ event, seatMap, status }) {
+export default function EventSeatMap({ event, seatMap, status, onSeatChange, showRegistrationButton = true }) {
   const [selectedSeat, setSelectedSeat] = useState("");
 
   if (status === "loading") {
@@ -43,7 +43,10 @@ export default function EventSeatMap({ event, seatMap, status }) {
                       className={`size-8 rounded-t-md border text-[10px] font-bold ${selected ? "border-[#d6533d] bg-[#ed6148] text-white" : reserved ? "border-slate-300 bg-slate-200 text-slate-400" : blocked ? "border-slate-200 bg-white text-slate-300" : "border-[#245c55] bg-white text-[#173d39] hover:bg-[#e8eee7]"}`}
                       disabled={unavailable}
                       key={seat.id}
-                      onClick={() => setSelectedSeat(seat.id)}
+                      onClick={() => {
+                        setSelectedSeat(seat.id);
+                        onSeatChange?.(seat.id);
+                      }}
                       title={`${seat.id}: ${reserved ? "Reserved" : blocked ? "Unavailable" : selected ? "Selected" : "Available"}`}
                       type="button"
                     >
@@ -70,7 +73,7 @@ export default function EventSeatMap({ event, seatMap, status }) {
         <p className="mt-4 rounded-md bg-amber-50 p-3 text-sm leading-5 text-amber-900">
           Registration is not currently open for this event.
         </p>
-      ) : (
+      ) : showRegistrationButton ? (
         <form action={registerForEvent} className="mt-4">
           <input name="event_id" type="hidden" value={event.id} />
           <input name="seat_id" type="hidden" value={selectedSeat} />

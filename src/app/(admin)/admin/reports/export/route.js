@@ -1,4 +1,5 @@
 import { getOrganizationAdminContext } from "@/lib/admin-data";
+import { hasMinimumPlan } from "@/lib/account-plan";
 
 function csvCell(value) {
   let text = String(value ?? "");
@@ -67,6 +68,9 @@ export async function GET(request) {
   }
 
   if (kind !== "reports") return new Response("Invalid export type.", { status: 400 });
+  if (!hasMinimumPlan(context.planTier, "business")) {
+    return new Response("Advanced reports require a Business account plan.", { status: 403 });
+  }
   if (!context.canManageOrganization) return new Response("Organization admin permission required.", { status: 403 });
   const { data: reports, error } = await context.supabase.rpc("admin_get_organization_reports", {
     p_organization_id: context.organization.id,

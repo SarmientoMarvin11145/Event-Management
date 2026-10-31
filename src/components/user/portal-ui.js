@@ -23,7 +23,7 @@ export function Panel({ children, className = "" }) {
   return <section className={`kuro-panel rounded-md border border-[#dce4dc] bg-white p-5 sm:p-6 ${className}`}>{children}</section>;
 }
 
-export function EmptyState({ title, description, href = "/events", action = "Browse events" }) {
+export function EmptyState({ title, description, href = "/browse-events", action = "Browse events" }) {
   return (
     <div className="kuro-panel rounded-md border border-dashed border-[#cbd8d1] bg-white px-6 py-10 text-center">
       <p aria-hidden="true" className="text-3xl">✦</p>

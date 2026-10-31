@@ -64,7 +64,7 @@ export default async function HistoryPage({ searchParams }) {
           })}
         </div>
       ) : (
-        <EmptyState title="No event history yet" description="Past events, attendance details, and feedback opportunities will appear here." href="/events" />
+        <EmptyState title="No event history yet" description="Past events, attendance details, and feedback opportunities will appear here." href="/browse-events" />
       )}
       <p className="text-xs leading-5 text-[#7a8b84]">Attendance is recorded only after an organizer check-in. Request an official attendance report from the event organizer if you need one.</p>
     </div>

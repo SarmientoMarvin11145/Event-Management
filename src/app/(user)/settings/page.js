@@ -33,7 +33,7 @@ export default async function SettingsPage({ searchParams }) {
       <form action={saveSettings} className="space-y-5">
         <Panel>
           <h2 className="text-lg font-bold text-[#173d39]">Notifications</h2>
-          <p className="mt-1 text-sm text-[#61736e]">These preferences are saved to your account. In-app registration and certificate alerts use their toggles; email, SMS, push, scheduled reminders, and promotional delivery are not connected.</p>
+          <p className="mt-1 text-sm text-[#61736e]">These preferences are saved to your account. Registration confirmation emails use SendGrid when enabled. Scheduled reminders, SMS, push, certificate emails, and promotional delivery are not connected.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {notificationOptions.map(([name, label]) => (
               <label className="flex items-center gap-3 rounded-md border border-[#e3e9e2] p-3 text-sm text-[#526864]" key={name}>

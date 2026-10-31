@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isFeatureEnabled } from "@/lib/features";
+import { sendSendGridEmail } from "@/lib/sendgrid";
+import { validateRegistrationForm } from "@/lib/registration-form";
 
 async function requireEnabledFeature(key, label) {
   if (!(await isFeatureEnabled(key))) throw new Error(`${label} is currently disabled by the platform team.`);
@@ -43,21 +45,63 @@ function requiredText(formData, key, label, maxLength = 200) {
 
 export async function registerForEvent(formData) {
   await requireEnabledFeature("event-registration", "Event registration");
-  const { supabase } = await getActionContext();
+  const { supabase, user } = await getActionContext();
   const eventId = requiredText(formData, "event_id", "Event");
+  const [{ data: event, error: eventError }, { data: settings, error: settingsError }] = await Promise.all([
+    supabase.from("events").select("title, start_date, registration_form").eq("id", eventId).maybeSingle(),
+    supabase.from("attendee_settings").select("notification_preferences").eq("user_id", user.id).maybeSingle(),
+  ]);
+  if (eventError) throw new Error(`Unable to load event registration details: ${eventError.message}`, { cause: eventError });
+  if (settingsError) throw new Error(`Unable to load notification preferences: ${settingsError.message}`, { cause: settingsError });
+  let answers = {};
+  try {
+    answers = JSON.parse(String(formData.get("answers_json") || "{}"));
+    validateRegistrationForm(event?.registration_form || [], answers);
+  } catch (answerError) {
+    return { error: answerError instanceof Error ? answerError.message : "Registration answers are invalid." };
+  }
   const seatId = String(formData.get("seat_id") || "").trim();
-  const result = seatId
-    ? await supabase.rpc("register_for_event_with_seat", {
-      p_event_id: eventId,
-      p_seat_id: seatId,
-    })
-    : await supabase.rpc("register_for_event", { p_event_id: eventId });
-  const { error } = result;
+  const result = await supabase.rpc("register_for_event_with_form", {
+    p_event_id: eventId,
+    p_seat_id: seatId || null,
+    p_answers: answers,
+  });
+  const { data: registrationId, error } = result;
   if (error) throw new Error(`Registration failed: ${error.message}`, { cause: error });
+  let emailFailed = false;
+  if (user.email && settings?.notification_preferences?.registration_confirmations !== false) {
+    const { data: registration, error: registrationError } = await supabase
+      .from("registrations")
+      .select("status, registration_code")
+      .eq("id", registrationId)
+      .eq("attendee_id", user.id)
+      .maybeSingle();
+    if (registrationError) {
+      emailFailed = true;
+      console.error("Unable to load event registration email details", registrationError);
+    } else try {
+      await sendSendGridEmail({
+        to: user.email,
+        subject: `KURO event registration: ${event?.title || "Registration received"}`,
+        text: [
+          `Your registration for ${event?.title || "the event"} has been received.`,
+          `Status: ${String(registration?.status || "received").replaceAll("_", " ")}`,
+          registration?.registration_code ? `Registration ID: ${registration.registration_code}` : "",
+          event?.start_date ? `Event date: ${new Intl.DateTimeFormat("en-PH", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(event.start_date))}` : "",
+          "",
+          "Manage your tickets in your KURO workspace.",
+        ].filter(Boolean).join("\n"),
+      });
+    } catch (emailError) {
+      emailFailed = true;
+      console.error("Unable to send event registration email", emailError);
+    }
+  }
   revalidatePath("/dashboard");
+  revalidatePath("/browse-events");
   revalidatePath("/my-events");
   revalidatePath("/my-tickets");
-  redirect("/my-tickets");
+  redirect(emailFailed ? "/my-tickets?email=failed" : "/my-tickets");
 }
 
 export async function cancelRegistration(formData) {
@@ -103,6 +147,7 @@ export async function addFavorite(formData) {
     .insert({ user_id: user.id, event_id: eventId });
   if (error) throw new Error(`Could not save event: ${error.message}`, { cause: error });
   revalidatePath("/dashboard");
+  revalidatePath("/browse-events");
   revalidatePath("/favorites");
   revalidatePath("/events");
   redirect("/favorites");
@@ -245,8 +290,21 @@ export async function applyAsOrganizer(formData) {
     details,
   });
   if (error) throw new Error(`Application could not be submitted: ${error.message}`, { cause: error });
+  let emailFailed = false;
+  if (user.email) {
+    try {
+      await sendSendGridEmail({
+        to: user.email,
+        subject: `KURO organizer application received: ${organizationName}`,
+        text: `We received your organizer application for ${organizationName} (${organizationType}). You can check its status in your KURO workspace.`,
+      });
+    } catch (emailError) {
+      emailFailed = true;
+      console.error("Unable to send organizer application confirmation email", emailError);
+    }
+  }
   revalidatePath("/apply-organizer");
-  redirect("/apply-organizer?submitted=1");
+  redirect(emailFailed ? "/apply-organizer?submitted=1&email=failed" : "/apply-organizer?submitted=1");
 }
 
 export async function submitEventReview(formData) {

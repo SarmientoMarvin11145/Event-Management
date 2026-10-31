@@ -5,6 +5,7 @@ import { requireAuthenticatedUser } from "@/lib/authorization";
 import { isMissingOrganizationMembershipFunction } from "@/lib/admin-data";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { filterLinksByFlags, getFeatureFlagMap } from "@/lib/features";
+import { getProfileWithPlan } from "@/lib/account-plan";
 
 export const instant = false;
 
@@ -16,7 +17,6 @@ const links = [
   { href: "/admin/staff", label: "Staff" },
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/billing", label: "Billing" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/dashboard", label: "My workspace" },
 ];
@@ -29,7 +29,6 @@ const linkFlags = {
   "/admin/staff": "admin-staff",
   "/admin/venues": "admin-venues",
   "/admin/reports": "admin-reports",
-  "/admin/billing": "payment-gateway",
   "/admin/settings": "admin-settings",
 };
 
@@ -46,15 +45,16 @@ async function AuthenticatedAdminLayout({ children }) {
   const supabase = await createSupabaseServerClient();
   const [
     { data: settings, error: settingsError },
-    { data: profile, error: profileError },
+    profileResult,
     { data: memberships, error: membershipsError },
     { data: notifications, error: notificationsError },
   ] = await Promise.all([
     supabase.from("attendee_settings").select("appearance_preferences").eq("user_id", user.id).maybeSingle(),
-    supabase.from("profiles").select("full_name, role").eq("id", user.id).maybeSingle(),
+    getProfileWithPlan(supabase, user.id, "full_name, avatar_url, role"),
     supabase.rpc("get_my_organization_memberships"),
     supabase.from("notifications").select("id, title, message, link, created_at, is_read").eq("user_id", user.id).order("created_at", { ascending: false }).limit(8),
   ]);
+  const { data: profile, error: profileError, planSchemaMissing } = profileResult;
   if (settingsError) throw new Error(`Unable to load admin appearance preferences: ${settingsError.message}`, { cause: settingsError });
   if (profileError) throw new Error(`Unable to load admin profile: ${profileError.message}`, { cause: profileError });
   if (isMissingOrganizationMembershipFunction(membershipsError)) {
@@ -64,6 +64,10 @@ async function AuthenticatedAdminLayout({ children }) {
         initialTheme={settings?.appearance_preferences?.theme || "system"}
         links={[{ href: "/dashboard", label: "My workspace" }]}
         profileName={profile?.full_name || user.email || "Administrator"}
+        profileAvatarUrl={profile?.avatar_url}
+        accountPlanExpiresAt={profile?.plan_expires_at}
+        accountPlanTier={profile?.plan_tier}
+        setupNotice={planSchemaMissing ? "Account-plan database setup is incomplete. Apply supabase/migrations/20261025100000_add_individual_account_plans_and_event_banners.sql in the Supabase SQL Editor, then refresh the API schema cache." : undefined}
         profileRole="admin"
         title="Organization admin"
       >
@@ -98,6 +102,10 @@ async function AuthenticatedAdminLayout({ children }) {
       links={filterLinksByFlags(links, await getFeatureFlagMap(), linkFlags)}
       notifications={notifications || []}
       profileName={profile?.full_name || user.email || "Administrator"}
+      profileAvatarUrl={profile?.avatar_url}
+      accountPlanExpiresAt={profile?.plan_expires_at}
+      accountPlanTier={profile?.plan_tier}
+      setupNotice={planSchemaMissing ? "Account-plan database setup is incomplete. Apply supabase/migrations/20261025100000_add_individual_account_plans_and_event_banners.sql in the Supabase SQL Editor, then refresh the API schema cache." : undefined}
       profileRole={memberships?.[0]?.role?.replaceAll("_", " ") || profile?.role || "admin"}
       title="Organization admin"
     >

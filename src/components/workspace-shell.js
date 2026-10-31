@@ -3,16 +3,17 @@ import Image from "next/image";
 import SignOutButton from "@/components/sign-out-button";
 import ThemeSync from "@/components/user/theme-sync";
 import NotificationMenu from "@/components/user/notification-menu";
+import AccountPlanBadge from "@/components/account-plan-badge";
 
 const mobileLinks = [
   { href: "/dashboard", label: "Home", icon: "⌂" },
   { href: "/my-tickets", label: "Tickets", icon: "▣" },
-  { href: "/events", label: "Discover", icon: "⌕" },
+  { href: "/browse-events", label: "Discover", icon: "⌕" },
   { href: "/notifications", label: "Alerts", icon: "♢" },
   { href: "/profile", label: "Profile", icon: "◉" },
 ];
 
-export default function WorkspaceShell({ title, links, children, initialTheme = "system", initialLocale = "en", notifications = [], profileName, profileRole, userWorkspace = false }) {
+export default function WorkspaceShell({ title, links, children, initialTheme = "system", initialLocale = "en", notifications = [], profileName, profileAvatarUrl, profileRole, accountPlanTier = "free", accountPlanExpiresAt, setupNotice, userWorkspace = false }) {
   return (
     <div className={userWorkspace ? "kuro-page min-h-screen bg-[#f6f7f2] text-[#193532]" : "kuro-page min-h-screen bg-slate-50"}>
       <ThemeSync locale={userWorkspace ? initialLocale : undefined} theme={initialTheme} />
@@ -35,7 +36,7 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                     Admin workspace
                   </Link>
                 )}
-                <form action="/events" className="hidden w-56 md:flex" role="search">
+                <form action="/browse-events" className="hidden w-56 md:flex" role="search">
                   <label className="sr-only" htmlFor="workspace-search">Search events</label>
                   <input className="kuro-input min-w-0 flex-1 rounded-l-md border border-[#cbd8d1] bg-white px-3 py-2 text-sm" id="workspace-search" name="q" placeholder="Search events..." type="search" />
                   <button className="rounded-r-md bg-[#173d39] px-3 text-xs font-bold text-white" type="submit">Search</button>
@@ -53,6 +54,21 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
             {!userWorkspace && (
               <>
                 <NotificationMenu notifications={notifications} />
+                <Link className="kuro-nav-control flex items-center gap-2 rounded-md border border-slate-200 px-2.5 py-1.5 text-slate-700 hover:bg-slate-50" href="/profile">
+                  <span
+                    aria-label={profileName || "Profile"}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8eee7] bg-cover bg-center text-sm font-bold text-[#245c55]"
+                    role="img"
+                    style={profileAvatarUrl ? { backgroundImage: `url("${profileAvatarUrl}")` } : undefined}
+                  >
+                    {!profileAvatarUrl && (profileName?.trim()?.[0]?.toUpperCase() || "A")}
+                  </span>
+                  <span className="hidden text-left sm:block">
+                    <span className="block max-w-36 truncate text-sm font-semibold">{profileName || "My profile"}</span>
+                    <span className="block text-xs capitalize text-slate-500">{profileRole || "Administrator"}</span>
+                  </span>
+                </Link>
+                <AccountPlanBadge expiresAt={accountPlanExpiresAt} tier={accountPlanTier} />
                 <details className="relative">
                   <summary className="kuro-nav-control cursor-pointer list-none rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     {profileName || "Account"} ▾
@@ -68,10 +84,33 @@ export default function WorkspaceShell({ title, links, children, initialTheme = 
                 </details>
               </>
             )}
+            {userWorkspace && profileName && (
+              <>
+                <Link aria-label="My profile" className="flex items-center gap-2 rounded-md border border-[#dce4dc] px-2 py-1.5 text-[#245c55] hover:bg-[#f4f6f1]" href="/profile">
+                  <span
+                    aria-label={profileName}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8eee7] bg-cover bg-center text-xs font-bold"
+                    role="img"
+                    style={profileAvatarUrl ? { backgroundImage: `url("${profileAvatarUrl}")` } : undefined}
+                  >
+                    {!profileAvatarUrl && (profileName.trim()[0]?.toUpperCase() || "U")}
+                  </span>
+                  <span className="hidden max-w-32 truncate text-sm font-semibold sm:block">{profileName}</span>
+                </Link>
+                <AccountPlanBadge expiresAt={accountPlanExpiresAt} tier={accountPlanTier} userWorkspace />
+              </>
+            )}
             <SignOutButton />
           </div>
         </div>
       </header>
+      {setupNotice && (
+        <div className="mx-auto mt-5 max-w-7xl px-5 sm:px-8">
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="alert">
+            {setupNotice}
+          </p>
+        </div>
+      )}
       <div className={userWorkspace ? "mx-auto grid max-w-7xl gap-8 px-5 py-6 pb-24 sm:px-8 sm:py-8 sm:pb-28 md:grid-cols-[220px_minmax(0,1fr)]" : "mx-auto grid max-w-7xl gap-8 px-6 py-8 md:grid-cols-[220px_minmax(0,1fr)]"}>
         <nav aria-label={`${title} navigation`} className={userWorkspace ? "hidden gap-1 md:flex md:flex-col" : "flex gap-2 overflow-x-auto md:flex-col"}>
           {links.map(({ href, label }) => (

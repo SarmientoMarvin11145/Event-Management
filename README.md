@@ -44,9 +44,12 @@ Apply `supabase/migrations/20261024220000_allow_favorites_for_active_events.sql`
 to allow attendees to save events while registration remains open or the event
 has not ended.
 
-The feature, AI, integrations, pricing, and resource sections are product
-previews. PayMongo test-mode checkout is available for paid event tickets and
-organization plans; live payments are not enabled.
+The feature, AI, integrations, and resource sections are product previews.
+Individual account plans are Free (up to 3 active events), Pro (up to 10 active
+events, paid tickets, and seating), and Business (unlimited active events,
+paid tickets, seating, and advanced reports). Event banner uploads are
+available on every plan. Paid account plans use PayMongo test checkout and
+require manual renewal; live payments are not enabled.
 
 Apply `supabase/migrations/20261016100000_record_policy_consent.sql` after the
 profile migration to store the Terms and Privacy policy versions and acceptance
@@ -77,11 +80,14 @@ favorites, notifications, reviews, settings, support requests, and organizer
 applications. It also adds the public, limited-field certificate verification
 function. Row-level security restricts attendee records to their owner.
 
-The attendee workspace includes a data-backed dashboard, profile and settings
-forms, free-event registration and cancellation, tickets, event history and CSV
-export, certificates, favorites, notifications, support requests, and organizer
-applications. PayMongo test checkout can issue one ticket per attendee and event;
-seat selection and multi-ticket orders are not implemented. QR scanning, ticket PDFs and wallet passes,
+The attendee workspace includes a data-backed dashboard and its own authenticated
+`/browse-events` directory, so users can browse events without leaving their
+workspace navigation. The public `/events` directory remains available to guests.
+The workspace also includes profile and settings forms, free-event registration
+and cancellation, tickets, event history and CSV export, certificates, favorites,
+notifications, support requests, and organizer applications. PayMongo test
+checkout can issue one ticket per attendee and event; seat selection and
+multi-ticket orders are not implemented. QR scanning, ticket PDFs and wallet passes,
 outbound notification delivery, organizer approval, direct messaging, and
 attendee-to-organizer certificate issuance require workflows or integrations
 that are not part of this preview. The app reports these limitations rather
@@ -113,8 +119,12 @@ Apply `20261024190000_add_paymongo_payments.sql` and
 `20261024200000_add_paymongo_test_event.sql` after the attendee and organization
 admin migrations, then apply
 `20261024230000_allow_paid_event_publishing.sql` to allow PHP-priced events to
-be published with PayMongo test checkout. Paid tickets are confirmed only after
-the payment webhook verifies the transaction.
+be published with PayMongo test checkout. Apply
+`20261025100000_add_individual_account_plans_and_event_banners.sql` after it to
+enable individual plan billing, active-event limits, plan-gated features, and
+the `event-banners` storage bucket. Events count toward the plan of the user
+who created them. Paid tickets are confirmed only after the payment webhook
+verifies the transaction.
 
 ## Superadmin console
 
@@ -136,12 +146,33 @@ Plan labels, feature flags, platform settings, content, and in-app broadcasts
 are stored by KURO, but are not a substitute for the respective runtime
 integrations. The payment ledger records PayMongo test transactions only; live
 payments, refunds, payouts, and automated subscription renewals are unavailable.
-There is no outbound email/SMS provider, impersonation, forced logout, IP firewall, uptime
+SendGrid sends event registration and payment confirmations, organizer
+application receipts and status updates. There is no SMS provider,
+impersonation, forced logout, IP firewall, uptime
 telemetry, backup control, or job queue in this project. The console marks
 these capabilities unavailable rather than fabricating status or financial
 metrics. Published content is saved but is not yet wired into the public site;
 maintenance mode and feature flags likewise require explicit runtime gates
 before they affect other routes.
+
+## SendGrid email
+
+Set `SENDGRID_API_KEY` as a server-only environment variable and verify
+`forcapstone903@gmail.com` as a Sender Identity in SendGrid. The app uses the
+sender name `KuroEventsOfficials`; optionally set `SENDGRID_FROM_EMAIL` and
+`SENDGRID_FROM_NAME` to override those defaults. Never use a `NEXT_PUBLIC_`
+prefix for the API key. Restart the development server after changing
+`.env.local`.
+
+Account verification and password-reset messages are sent by Supabase Auth, not
+the app's SendGrid API integration. To route those messages through SendGrid,
+configure Supabase Auth's custom SMTP settings with host `smtp.sendgrid.net`,
+port `587`, username `apikey`, the SendGrid API key as the password, and the
+verified sender email/name above. Keep the existing KURO email templates and
+callback URLs. Test using accounts you control. The app's registration
+confirmation email follows the user's **Registration confirmations** setting;
+payment receipts and organizer application status emails are operational
+messages. Newsletter signup and campaign sending are not implemented.
 
 ## Getting Started
 

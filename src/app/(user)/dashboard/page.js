@@ -74,7 +74,7 @@ async function DashboardContent() {
     ["Create your account", true, "/profile"],
     ["Complete your profile", Boolean(profileResult.data?.full_name && profileResult.data?.phone), "/profile"],
     ["Choose your interests", Boolean(profileResult.data?.interests?.length), "/profile"],
-    ["Register for your first event", activeRegistrations.length > 0, "/events"],
+    ["Register for your first event", activeRegistrations.length > 0, "/browse-events"],
   ];
   const completedSteps = checklist.filter(([, complete]) => complete).length;
 
@@ -84,7 +84,7 @@ async function DashboardContent() {
       {["admin", "superadmin"].includes(profileResult.data?.role) && (
         <StatusMessage>You also have platform access. <Link className="font-bold underline" href={profileResult.data.role === "superadmin" ? "/superadmin/dashboard" : "/admin/dashboard"}>Open your admin workspace</Link></StatusMessage>
       )}
-      {application?.status === "pending" && (
+      {application?.status === "pending" && !["admin", "superadmin"].includes(profileResult.data?.role) && (
         <StatusMessage>Your application for {application.organization_name} is under review. <Link className="font-bold underline" href="/apply-organizer">View status</Link></StatusMessage>
       )}
       {(notificationsResult.count || 0) > 0 && (
@@ -146,7 +146,7 @@ async function DashboardContent() {
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">Discover</p>
               <h2 className="mt-1 text-xl font-bold text-[#173d39]">Upcoming public events</h2>
             </div>
-            <Link className="text-sm font-bold text-[#245c55]" href="/events">Browse all</Link>
+            <Link className="text-sm font-bold text-[#245c55]" href="/browse-events">Browse all</Link>
           </div>
           {recommendations.length ? (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -162,7 +162,7 @@ async function DashboardContent() {
           <div className="mt-4 grid gap-2">
             {[
               ["/my-tickets", "View my tickets", "my-tickets"],
-              ["/events", "Browse events", "event-discovery"],
+              ["/browse-events", "Browse events", "event-discovery"],
               ["/certificates", "My certificates", "certificates"],
               ["/profile", "Edit profile", "user-profile"],
               ["/apply-organizer", "Apply as organizer", "organizer-applications"],

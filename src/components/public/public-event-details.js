@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { addFavorite, registerForEvent } from "@/app/(user)/actions";
 import EventSeatMap from "@/components/public/event-seat-map";
+import GuestEventRegistration from "@/components/public/guest-event-registration";
 
 export default function PublicEventDetails({ slug }) {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function PublicEventDetails({ slug }) {
   const [seatMapState, setSeatMapState] = useState({ eventId: null, data: null, status: "idle" });
   const [checkoutPending, setCheckoutPending] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+  const [selectedSeat, setSelectedSeat] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -21,7 +23,7 @@ export default function PublicEventDetails({ slug }) {
     async function loadEvent() {
       const { data, error } = await supabase
         .from("events")
-        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)")
+        .select("id, title, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, registration_form, organizations(name, logo_url)")
         .eq("slug", slug)
         .eq("status", "published")
         .maybeSingle();
@@ -146,7 +148,7 @@ export default function PublicEventDetails({ slug }) {
             </p>
           )}
           {event.venue_id ? (
-            <EventSeatMap event={event} seatMap={seatMap} status={seatMapStatus} />
+            <EventSeatMap event={event} onSeatChange={setSelectedSeat} seatMap={seatMap} showRegistrationButton={ticketPrice > 0} status={seatMapStatus} />
           ) : null}
           {ticketPrice > 0 ? registrationAvailable ? (
             <div className="mt-4">
@@ -162,14 +164,17 @@ export default function PublicEventDetails({ slug }) {
             </div>
           ) : (
             <p className="mt-2 text-sm text-[#61736e]">Registration is not available for this event.</p>
-          ) : !event.venue_id && registrationAvailable ? (
-            <form action={registerForEvent} className="mt-4">
-              <input name="event_id" type="hidden" value={event.id} />
-              <button className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37]" type="submit">Register for free</button>
-            </form>
-          ) : !event.venue_id ? (
+          ) : registrationAvailable ? (
+            <GuestEventRegistration
+              eventId={event.id}
+              eventTitle={event.title}
+              fields={event.registration_form || []}
+              registrationAvailable={registrationAvailable && (!event.venue_id || Boolean(selectedSeat))}
+              seatId={event.venue_id ? selectedSeat : ""}
+            />
+          ) : (
             <p className="mt-2 text-sm text-[#61736e]">Registration is not available for this event.</p>
-          ) : null}
+          )}
           <form action={addFavorite} className="mt-2">
             <input name="event_id" type="hidden" value={event.id} />
             <button className="w-full rounded-md border border-[#cbd8d1] px-4 py-3 text-sm font-bold text-[#245c55] hover:bg-[#f4f6f1]" type="submit">Save event</button>

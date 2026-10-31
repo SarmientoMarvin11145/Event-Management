@@ -94,10 +94,9 @@ const faqs = [
 ];
 
 const plans = [
-  { name: "Free", price: "₱0", detail: "For trying KURO with a small event", action: "Start free" },
-  { name: "Pro", price: "₱999", unit: "/ month", detail: "For independent organizers and growing teams", action: "Available soon", featured: true },
-  { name: "Business", price: "₱2,999", unit: "/ month", detail: "For schools, hospitality, and multi-event teams", action: "Available soon" },
-  { name: "Enterprise", price: "Custom", detail: "For universities and public-sector programs", action: "Contact options soon" },
+  { name: "Free", price: "₱0", detail: "Up to 3 active events, standard tools, and event banner uploads", action: "Start free" },
+  { name: "Pro", price: "₱999", unit: "/ month", detail: "Up to 10 active events, paid tickets, seating plans, and event banner uploads", action: "Sign in to upgrade", featured: true },
+  { name: "Business", price: "₱2,999", unit: "/ month", detail: "Unlimited active events, paid tickets, seating plans, advanced reports, and event banner uploads", action: "Sign in to upgrade" },
 ];
 
 export default function PublicHome() {
@@ -390,9 +389,9 @@ export default function PublicHome() {
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#d6533d]">{text("Pricing preview")}</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{text("Start small. Grow when you’re ready.")}</h2>
             </div>
-            <p className="max-w-sm text-sm leading-6 text-[#647771]">{text("Preview prices only. Paid plans and checkout are not active yet.")}</p>
+            <p className="max-w-sm text-sm leading-6 text-[#647771]">{text("Plans apply to your individual account. Paid checkout is available in test mode; renewals are manual.")}</p>
           </div>
-          <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4" data-scroll-stagger>
+          <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-scroll-stagger>
             {plans.map((plan) => (
               <article className={`kuro-panel rounded-md border p-5 ${plan.featured ? "border-[#173d39] bg-[#173d39] text-white" : "border-[#d8e1d8] bg-[#fbfcf8] text-[#173d39]"}`} data-scroll-reveal="up" key={plan.name}>
                 <h3 className="text-sm font-bold">{text(plan.name)}</h3>
@@ -401,7 +400,7 @@ export default function PublicHome() {
                 {plan.name === "Free" ? (
                   <Link className="mt-6 inline-flex w-full justify-center rounded bg-[#e96247] px-4 py-2.5 text-sm font-bold text-white" href="/register">{text(plan.action)}</Link>
                 ) : (
-                  <span className="mt-6 inline-flex w-full justify-center rounded border border-current/20 px-4 py-2.5 text-sm font-bold opacity-70">{text(plan.action)}</span>
+                  <Link className="mt-6 inline-flex w-full justify-center rounded border border-current/20 px-4 py-2.5 text-sm font-bold hover:bg-white/10" href="/login">{text(plan.action)}</Link>
                 )}
               </article>
             ))}

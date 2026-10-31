@@ -5,15 +5,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/lib/authorization";
 import { isFeatureEnabled } from "@/lib/features";
+import { getAccountPlan, hasMinimumPlan } from "@/lib/account-plan";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { validateRegistrationForm } from "@/lib/registration-form";
 import { getOrganizationAdminContext } from "@/lib/admin-data";
 
 async function getVenueAdminContext() {
   if (!(await isFeatureEnabled("seating-plans"))) {
     throw new Error("Venue seating plans are currently disabled by the platform team.");
   }
-  await requireAuthenticatedUser(["admin", "user"]);
-  return createSupabaseServerClient();
+  const user = await requireAuthenticatedUser(["admin", "user"]);
+  const supabase = await createSupabaseServerClient();
+  const plan = await getAccountPlan(supabase, user.id);
+  if (!hasMinimumPlan(plan.tier, "pro")) {
+    throw new Error("Seating plans require a Pro or Business account plan.");
+  }
+  return supabase;
 }
 
 function requiredText(formData, key, label, maxLength) {
@@ -130,8 +137,62 @@ export async function saveAdminEvent(_previousState, formData) {
     ? null
     : optionalText(formData, "online_meeting_url", 1000);
   if (onlineMeetingUrl && !/^https:\/\/\S+$/i.test(onlineMeetingUrl)) throw new Error("Meeting links must use HTTPS.");
+  let registrationForm;
+  let reminderSettings;
+  try {
+    registrationForm = JSON.parse(String(formData.get("registration_form") || "[]"));
+    validateRegistrationForm(registrationForm, {}, { validateAnswers: false });
+    reminderSettings = JSON.parse(String(formData.get("reminder_settings") || "{}"));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "The registration form is invalid." };
+  }
+  if (!reminderSettings || typeof reminderSettings !== "object" || Array.isArray(reminderSettings)) {
+    return { error: "Event reminder settings are invalid." };
+  }
 
-  const { data: eventData, error } = await context.supabase.rpc("admin_save_event", {
+  const bannerFile = formData.get("banner_file");
+  const clearBanner = formData.get("clear_banner") === "on";
+  if (clearBanner && bannerFile instanceof File && bannerFile.size > 0) {
+    return { error: "Choose a banner image or remove the current image, not both." };
+  }
+  if (bannerFile && typeof bannerFile !== "string" && bannerFile.size > 0) {
+    const allowedTypes = new Map([
+      ["image/jpeg", "jpg"],
+      ["image/png", "png"],
+      ["image/webp", "webp"],
+    ]);
+    if (!allowedTypes.has(bannerFile.type)) {
+      return { error: "Choose a PNG, JPEG, or WebP image." };
+    }
+    if (bannerFile.size > 5 * 1024 * 1024) {
+      return { error: "Event banner images must be 5 MB or smaller." };
+    }
+  } else if (bannerFile && typeof bannerFile === "string" && bannerFile) {
+    return { error: "Choose a valid event banner image." };
+  }
+
+  let uploadedBannerPath = null;
+  let bannerUrl = null;
+  if (bannerFile instanceof File && bannerFile.size > 0) {
+    const extension = new Map([
+      ["image/jpeg", "jpg"],
+      ["image/png", "png"],
+      ["image/webp", "webp"],
+    ]).get(bannerFile.type);
+    uploadedBannerPath = `${organizationId}/${eventId || "new"}/${randomUUID()}.${extension}`;
+    const { error: uploadError } = await context.supabase.storage
+      .from("event-banners")
+      .upload(uploadedBannerPath, bannerFile, {
+        contentType: bannerFile.type,
+        upsert: false,
+      });
+    if (uploadError) {
+      return { error: `Could not upload event banner: ${uploadError.message}` };
+    }
+    bannerUrl = context.supabase.storage.from("event-banners").getPublicUrl(uploadedBannerPath).data.publicUrl;
+  }
+
+  const { data: eventData, error } = await context.supabase.rpc("admin_save_event_with_registration_form", {
     p_event_id: eventId,
     p_organization_id: organizationId,
     p_title: title,
@@ -158,8 +219,21 @@ export async function saveAdminEvent(_previousState, formData) {
     p_online_meeting_url: onlineMeetingUrl,
     p_timezone: timezone,
     p_clear_online_meeting_url: clearOnlineMeetingUrl,
+    p_banner_url: bannerUrl,
+    p_clear_banner: clearBanner,
+    p_registration_form: registrationForm,
+    p_reminder_settings: {
+      two_days_before: reminderSettings.two_days_before !== false,
+      one_day_before: reminderSettings.one_day_before !== false,
+    },
   });
   if (error) {
+    if (uploadedBannerPath) {
+      const { error: cleanupError } = await context.supabase.storage
+        .from("event-banners")
+        .remove([uploadedBannerPath]);
+      if (cleanupError) console.error("Unable to remove an event banner after the event failed to save", cleanupError);
+    }
     const message = error.message === "Only future events can be published"
       ? "Only future events can be published. Choose a future start date and time, or save as a draft."
       : `Could not save event: ${error.message}`;

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { saveAdminEvent } from "@/app/(admin)/admin/actions";
+import Image from "next/image";
+import RegistrationFormBuilder from "@/components/admin/registration-form-builder";
+import { useState } from "react";
 
 const categories = [
   ["academic", "Academic"],
@@ -44,9 +47,11 @@ function Field({ label, children, hint }) {
 
 const inputClass = "min-w-0 rounded-md border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-[#245c55] focus:ring-2 focus:ring-[#245c55]/15";
 
-export default function EventForm({ organization, event = null, venues = [], initialStatus = "draft", onlineMeetingUrl = "" }) {
+export default function EventForm({ organization, event = null, venues = [], initialStatus = "draft", onlineMeetingUrl = "", planTier = "free" }) {
   const [state, formAction] = useActionState(saveAdminEvent, { error: "" });
+  const [reminders, setReminders] = useState(event?.reminder_settings || { two_days_before: true, one_day_before: true });
   const timezone = event?.timezone || organization.timezone || "Asia/Manila";
+  const canUsePaidFeatures = planTier === "pro" || planTier === "business";
 
   return (
     <form action={formAction} className="space-y-7">
@@ -80,6 +85,36 @@ export default function EventForm({ organization, event = null, venues = [], ini
         <Field label="Full description">
           <textarea className={inputClass} defaultValue={event?.description || ""} maxLength={10000} name="description" rows={5} />
         </Field>
+        <Field label="Event banner" hint="PNG, JPEG, or WebP; maximum 5 MB.">
+          <input accept="image/png,image/jpeg,image/webp" className={inputClass} name="banner_file" type="file" />
+          {event?.banner_url && (
+            <div className="mt-2 space-y-2">
+              <Image alt={`${event.title} banner preview`} className="h-36 w-full rounded-md object-cover" height={144} src={event.banner_url} unoptimized width={640} />
+              <label className="flex items-center gap-2 text-xs font-medium">
+                <input name="clear_banner" type="checkbox" />
+                Remove the current banner
+              </label>
+            </div>
+          )}
+        </Field>
+      </section>
+
+      <RegistrationFormBuilder initialFields={event?.registration_form || []} />
+
+      <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 sm:p-6">
+        <div className="sm:col-span-2">
+          <h2 className="font-bold text-slate-900">Attendee email reminders</h2>
+          <p className="mt-1 text-sm text-slate-500">Send event reminders to confirmed attendees who have a verified email address.</p>
+        </div>
+        <input name="reminder_settings" type="hidden" value={JSON.stringify(reminders)} />
+        <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+          <input checked={reminders.two_days_before !== false} onChange={(event) => setReminders((current) => ({ ...current, two_days_before: event.target.checked }))} type="checkbox" />
+          Send a reminder 2 days before
+        </label>
+        <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+          <input checked={reminders.one_day_before !== false} onChange={(event) => setReminders((current) => ({ ...current, one_day_before: event.target.checked }))} type="checkbox" />
+          Send a reminder 1 day before
+        </label>
       </section>
 
       <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 sm:p-6">
@@ -114,11 +149,12 @@ export default function EventForm({ organization, event = null, venues = [], ini
         <div className="sm:col-span-2">
           <h2 className="font-bold text-slate-900">Venue and registration</h2>
         </div>
-        <Field label="Saved venue and seating plan" hint="Select a venue to require attendee seat selection.">
-          <select className={inputClass} defaultValue={event?.venue_id || ""} name="venue_id">
+        <Field label="Saved venue and seating plan" hint={canUsePaidFeatures ? "Select a venue to require attendee seat selection." : "Seating plans are available on Pro and Business plans."}>
+          <select className={inputClass} defaultValue={event?.venue_id || ""} disabled={!canUsePaidFeatures} name="venue_id">
             <option value="">No venue seat plan</option>
             {venues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name}</option>)}
           </select>
+          {!canUsePaidFeatures && event?.venue_id && <input name="venue_id" type="hidden" value={event.venue_id} />}
         </Field>
         <Field label="Venue name (when no saved venue)">
           <input className={inputClass} defaultValue={!event?.venue_id ? event?.venue_name || "" : ""} maxLength={200} name="venue_name" />
@@ -129,8 +165,9 @@ export default function EventForm({ organization, event = null, venues = [], ini
         <Field label="Capacity" hint="Leave blank for unlimited capacity.">
           <input className={inputClass} defaultValue={event?.capacity || ""} min="1" name="capacity" type="number" />
         </Field>
-        <Field label="Registration fee" hint="Paid tickets are processed through PayMongo test checkout.">
-          <input className={inputClass} defaultValue={event?.ticket_price || "0"} min="0" name="ticket_price" step="0.01" type="number" />
+        <Field label="Registration fee" hint={canUsePaidFeatures ? "Paid tickets are processed through PayMongo test checkout." : "Paid ticket events are available on Pro and Business plans."}>
+          <input className={inputClass} defaultValue={event?.ticket_price || "0"} disabled={!canUsePaidFeatures} min="0" name="ticket_price" step="0.01" type="number" />
+          {!canUsePaidFeatures && event?.ticket_price > 0 && <input name="ticket_price" type="hidden" value={event.ticket_price} />}
         </Field>
         <Field label="Currency">
           <input className={inputClass} defaultValue={event?.currency || "PHP"} maxLength={3} minLength={3} name="currency" pattern="[A-Za-z]{3}" required />

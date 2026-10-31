@@ -25,7 +25,7 @@ export default async function NewAdminEventPage({ searchParams }) {
       <div className="mb-5">
         <OrganizationPicker organizations={context.organizations} pathname="/admin/events/new" selectedOrganizationId={context.organization.id} />
       </div>
-      <EventForm organization={context.organization} venues={venues || []} />
+      <EventForm organization={context.organization} planTier={context.planTier} venues={venues || []} />
     </WorkspacePage>
   );
 }

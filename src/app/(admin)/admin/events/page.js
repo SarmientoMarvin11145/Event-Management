@@ -7,6 +7,8 @@ import { getOrganizationAdminContext } from "@/lib/admin-data";
 
 const statuses = ["draft", "published", "cancelled"];
 
+export const instant = false;
+
 export default async function AdminEventsPage({ searchParams }) {
   await requireFeatureEnabled("admin-events");
   const params = await searchParams;

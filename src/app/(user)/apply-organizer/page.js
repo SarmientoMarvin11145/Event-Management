@@ -2,6 +2,7 @@ import { applyAsOrganizer } from "@/app/(user)/actions";
 import { getAttendeeSession, throwOnSupabaseError } from "@/lib/attendee-data";
 import { requireFeatureEnabled } from "@/lib/features";
 import { Panel, PortalHeading, StatusMessage } from "@/components/user/portal-ui";
+import { redirect } from "next/navigation";
 
 export const instant = false;
 export const metadata = { title: "Apply as organizer | KURO" };
@@ -10,6 +11,9 @@ export default async function ApplyOrganizerPage({ searchParams }) {
   await requireFeatureEnabled("organizer-applications");
   const params = await searchParams;
   const { supabase, user } = await getAttendeeSession();
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  throwOnSupabaseError(profileError);
+  if (["admin", "superadmin"].includes(profile?.role)) redirect("/admin/dashboard");
   const { data, error } = await supabase.from("organizer_applications").select("id, organization_name, organization_type, details, status, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10);
   throwOnSupabaseError(error);
   const applications = data || [];
@@ -19,6 +23,7 @@ export default async function ApplyOrganizerPage({ searchParams }) {
     <div className="space-y-6">
       <PortalHeading title="Apply as an organizer" description="Tell KURO about your organization to request organizer access." />
       {params?.submitted && <StatusMessage tone="success">Your application was submitted for review.</StatusMessage>}
+      {params?.email === "failed" && <StatusMessage tone="warning">Your application is saved, but its confirmation email could not be sent.</StatusMessage>}
       {pending ? (
         <Panel>
           <p className="text-xs font-bold uppercase tracking-wide text-[#d6533d]">Under review</p>
