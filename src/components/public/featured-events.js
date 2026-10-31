@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { translate, useLocale } from "@/lib/locale";
-import { addFavorite, registerForEvent } from "@/app/(user)/actions";
+import { addFavorite } from "@/app/(user)/actions";
+import { isEventRegistrationAvailable } from "@/lib/event-registration";
 
 const filters = [
   { id: "all", label: "All upcoming" },
@@ -52,7 +52,7 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, title, slug, description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)",
+          "id, title, slug, description, short_description, banner_url, start_date, end_date, venue_name, city, ticket_price, currency, capacity, venue_id, registration_opens_at, registration_deadline, organizations(name, logo_url)",
         )
         .eq("status", "published")
         .or(`registration_deadline.is.null,registration_deadline.gte.${nowIso},end_date.gte.${nowIso},and(end_date.is.null,start_date.gte.${latestStartWhenEndIsMissing})`)
@@ -68,8 +68,30 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
         return;
       }
 
-      setEvents(data || []);
-      setStatus(data?.length ? "ready" : "empty");
+      if (!data?.length) {
+        setEvents([]);
+        setStatus("empty");
+        return;
+      }
+      const { data: summaries, error: summaryError } = await supabase.rpc("get_event_ticket_summary", {
+        p_event_ids: data.map((event) => event.id),
+      });
+      if (!active) return;
+      if (summaryError) {
+        console.error("Unable to load public ticket availability.", summaryError);
+        setStatus("unavailable");
+        return;
+      }
+      const summariesByEvent = new Map((summaries || []).map((summary) => [summary.event_id, summary]));
+      setEvents(data.map((event) => {
+        const summary = summariesByEvent.get(event.id);
+        return {
+          ...event,
+          starting_price: summary?.starting_price ?? null,
+          available_quantity: summary ? summary.available_quantity : 0,
+        };
+      }));
+      setStatus("ready");
     }
 
     loadEvents();
@@ -185,11 +207,8 @@ export default function FeaturedEvents({ directory = false, initialQuery = "" })
 }
 
 function EventCard({ event }) {
-  const router = useRouter();
   const locale = useLocale();
   const text = (value) => translate(locale, value);
-  const [checkoutPending, setCheckoutPending] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
   const organization = Array.isArray(event.organizations)
     ? event.organizations[0]
     : event.organizations;
@@ -199,29 +218,7 @@ function EventCard({ event }) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(eventDate);
-  const ticketPrice = Number(event.ticket_price || 0);
-
-  async function startCheckout() {
-    setCheckoutPending(true);
-    setCheckoutError("");
-    try {
-      const response = await fetch("/api/payments/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "event_ticket", eventId: event.id }),
-      });
-      if (response.status === 401) {
-        router.push("/login");
-        return;
-      }
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not start checkout.");
-      window.location.assign(result.checkoutUrl);
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Could not start checkout.");
-      setCheckoutPending(false);
-    }
-  }
+  const registrationAvailable = isEventRegistrationAvailable(event);
 
   return (
     <article className="kuro-panel overflow-hidden rounded-md border border-[#dce4dc] bg-white" data-scroll-reveal="up">
@@ -256,46 +253,21 @@ function EventCard({ event }) {
           <p className="mt-1 text-sm text-[#61736e]">
             {[event.venue_name, event.city].filter(Boolean).join(", ") || text("Venue to be announced")}
           </p>
+          <p className="mt-2 text-sm font-semibold text-[#245c55]">
+            {event.starting_price == null ? text("No tickets available") : `${text("From")} ${new Intl.NumberFormat(dateLocales[locale], { style: "currency", currency: event.currency || "PHP" }).format(event.starting_price)}`}
+          </p>
+          <p className="mt-1 text-xs text-[#61736e]">
+            {event.available_quantity == null ? text("Unlimited availability") : `${Number(event.available_quantity).toLocaleString()} ${text("available")}`}
+          </p>
           <div className="mt-5 flex items-center justify-end border-t border-[#edf0eb] pt-4">
             <span className="text-sm font-bold text-[#245c55]">{text("View event")} &#8594;</span>
           </div>
         </div>
       </Link>
       <div className="flex flex-wrap gap-2 px-5 pb-5">
-        {event.venue_id && (
-          <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}`}>
-            {ticketPrice > 0 ? text("View seating and ticket options") : text("Choose a seat")}
-          </Link>
-        )}
-        {eventDate > new Date() && ticketPrice > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-[#173d39]">
-              {new Intl.NumberFormat(dateLocales[locale], {
-                style: "currency",
-                currency: event.currency || "PHP",
-              }).format(ticketPrice)}
-            </span>
-            {event.currency === "PHP" ? (
-              <button
-                className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37] disabled:cursor-wait disabled:opacity-60"
-                disabled={checkoutPending}
-                onClick={startCheckout}
-                type="button"
-              >
-                {checkoutPending ? text("Opening secure checkout...") : text("Buy ticket")}
-              </button>
-            ) : (
-              <span className="text-xs text-amber-800">{text("Online checkout is available for PHP events only.")}</span>
-            )}
-            {checkoutError && <p className="basis-full text-xs text-rose-700" role="alert">{checkoutError}</p>}
-          </div>
-        )}
-        {!event.venue_id && eventDate > new Date() && ticketPrice === 0 && (
-          <form action={registerForEvent}>
-            <input name="event_id" type="hidden" value={event.id} />
-            <button className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" type="submit">{text("Register")}</button>
-          </form>
-        )}
+        {registrationAvailable && event.slug ? (
+          <Link className="rounded-md bg-[#ed6148] px-3 py-2 text-xs font-bold text-white hover:bg-[#d74d37]" href={`/e/${event.slug}/register`}>{text("Register now")}</Link>
+        ) : <span className="rounded-md bg-[#f3f5f1] px-3 py-2 text-xs font-semibold text-[#61736e]">{text("Registration unavailable")}</span>}
         <form action={addFavorite}>
           <input name="event_id" type="hidden" value={event.id} />
           <button className="rounded-md border border-[#cbd8d1] px-3 py-2 text-xs font-bold text-[#245c55] hover:bg-[#f4f6f1]" type="submit">{text("Save event")}</button>

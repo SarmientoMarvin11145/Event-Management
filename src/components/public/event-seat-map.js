@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { registerForEvent } from "@/app/(user)/actions";
+import Link from "next/link";
+import { isEventRegistrationAvailable } from "@/lib/event-registration";
 
 export default function EventSeatMap({ event, seatMap, status }) {
-  const [selectedSeat, setSelectedSeat] = useState("");
-
   if (status === "loading") {
     return <p className="mt-4 text-sm text-[#61736e]" role="status">Loading available seats...</p>;
   }
@@ -14,10 +12,7 @@ export default function EventSeatMap({ event, seatMap, status }) {
     return <p className="mt-4 rounded-md bg-amber-50 p-3 text-sm text-amber-900">Seat availability is temporarily unavailable. Please try again later.</p>;
   }
 
-  const paidEvent = Number(event.ticket_price) > 0;
-  const registrationAvailable = new Date(event.start_date) > new Date()
-    && (!event.registration_opens_at || new Date(event.registration_opens_at) <= new Date())
-    && (!event.registration_deadline || new Date(event.registration_deadline) >= new Date());
+  const registrationAvailable = isEventRegistrationAvailable(event);
   const reservedSeats = new Set(seatMap.reservedSeatIds || []);
 
   return (
@@ -34,21 +29,28 @@ export default function EventSeatMap({ event, seatMap, status }) {
                 {(row.seats || []).map((seat) => {
                   const reserved = reservedSeats.has(seat.id);
                   const blocked = !seat.enabled;
-                  const selected = selectedSeat === seat.id;
                   const unavailable = reserved || blocked;
                   return (
-                    <button
-                      aria-label={`Seat ${seat.id}: ${reserved ? "reserved" : blocked ? "unavailable" : selected ? "selected" : "available"}`}
-                      aria-pressed={selected}
-                      className={`size-8 rounded-t-md border text-[10px] font-bold ${selected ? "border-[#d6533d] bg-[#ed6148] text-white" : reserved ? "border-slate-300 bg-slate-200 text-slate-400" : blocked ? "border-slate-200 bg-white text-slate-300" : "border-[#245c55] bg-white text-[#173d39] hover:bg-[#e8eee7]"}`}
-                      disabled={unavailable}
-                      key={seat.id}
-                      onClick={() => setSelectedSeat(seat.id)}
-                      title={`${seat.id}: ${reserved ? "Reserved" : blocked ? "Unavailable" : selected ? "Selected" : "Available"}`}
-                      type="button"
-                    >
-                      {seat.id.split("-").at(-1)}
-                    </button>
+                    unavailable || !registrationAvailable ? (
+                      <span
+                        aria-label={`Seat ${seat.id}: ${reserved ? "reserved" : blocked ? "unavailable" : "registration unavailable"}`}
+                        className="flex size-8 items-center justify-center rounded-t-md border border-slate-300 bg-slate-200 text-[10px] font-bold text-slate-400"
+                        key={seat.id}
+                        title={`${seat.id}: ${reserved ? "Reserved" : blocked ? "Unavailable" : "Registration unavailable"}`}
+                      >
+                        {seat.id.split("-").at(-1)}
+                      </span>
+                    ) : (
+                      <Link
+                        aria-label={`Seat ${seat.id}: available, select this seat`}
+                        className="flex size-8 items-center justify-center rounded-t-md border border-[#245c55] bg-white text-[10px] font-bold text-[#173d39] hover:bg-[#e8eee7]"
+                        href={`/e/${event.slug}/register?seat=${encodeURIComponent(seat.id)}`}
+                        key={seat.id}
+                        title={`${seat.id}: Available`}
+                      >
+                        {seat.id.split("-").at(-1)}
+                      </Link>
+                    )
                   );
                 })}
               </div>
@@ -58,30 +60,15 @@ export default function EventSeatMap({ event, seatMap, status }) {
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-[#61736e]">
         <Legend color="bg-white border-[#245c55]" label="Available" />
-        <Legend color="bg-[#ed6148] border-[#d6533d]" label="Selected" />
         <Legend color="bg-slate-200 border-slate-300" label="Reserved" />
         <Legend color="bg-white border-slate-200" label="Unavailable" />
       </div>
-      {paidEvent ? (
-        <p className="mt-4 rounded-md bg-amber-50 p-3 text-sm leading-5 text-amber-900">
-          Paid checkout is not enabled yet. The selected seat is only a preview and will not be reserved.
-        </p>
-      ) : !registrationAvailable ? (
+      {!registrationAvailable ? (
         <p className="mt-4 rounded-md bg-amber-50 p-3 text-sm leading-5 text-amber-900">
           Registration is not currently open for this event.
         </p>
       ) : (
-        <form action={registerForEvent} className="mt-4">
-          <input name="event_id" type="hidden" value={event.id} />
-          <input name="seat_id" type="hidden" value={selectedSeat} />
-          <button
-            className="w-full rounded-md bg-[#ed6148] px-4 py-3 text-sm font-bold text-white hover:bg-[#d74d37] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!selectedSeat}
-            type="submit"
-          >
-            {selectedSeat ? `Register with seat ${selectedSeat}` : "Select an available seat"}
-          </button>
-        </form>
+        <p className="mt-4 text-xs leading-5 text-[#61736e]">Select available seats here, then finish registration and payment in the secure registration steps.</p>
       )}
     </section>
   );

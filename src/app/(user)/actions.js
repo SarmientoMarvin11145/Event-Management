@@ -41,7 +41,7 @@ function requiredText(formData, key, label, maxLength = 200) {
   return value;
 }
 
-export async function registerForEvent(formData) {
+export async function registerForEvent(_previousState, formData) {
   await requireEnabledFeature("event-registration", "Event registration");
   const { supabase } = await getActionContext();
   const eventId = requiredText(formData, "event_id", "Event");
@@ -53,7 +53,7 @@ export async function registerForEvent(formData) {
     })
     : await supabase.rpc("register_for_event", { p_event_id: eventId });
   const { error } = result;
-  if (error) throw new Error(`Registration failed: ${error.message}`, { cause: error });
+  if (error) return { error: `Registration failed: ${error.message}` };
   revalidatePath("/dashboard");
   revalidatePath("/my-events");
   revalidatePath("/my-tickets");

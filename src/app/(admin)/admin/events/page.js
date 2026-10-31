@@ -1,7 +1,7 @@
 import Link from "next/link";
+import EventStatusForm from "@/components/admin/event-status-form";
 import OrganizationPicker from "@/components/admin/organization-picker";
 import WorkspacePage from "@/components/workspace-page";
-import { changeAdminEventStatus } from "@/app/(admin)/admin/actions";
 import { requireFeatureEnabled } from "@/lib/features";
 import { getOrganizationAdminContext } from "@/lib/admin-data";
 
@@ -81,14 +81,7 @@ export default async function AdminEventsPage({ searchParams }) {
                       <td className="px-4 py-4"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{event.status}</span></td>
                       <td className="px-4 py-4">
                         {canManage ? (
-                          <form action={changeAdminEventStatus} className="flex flex-wrap items-center gap-2">
-                            <input name="event_id" type="hidden" value={event.id} />
-                            <label className="sr-only" htmlFor={`status-${event.id}`}>Change status for {event.title}</label>
-                            <select className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs" defaultValue={event.status} id={`status-${event.id}`} name="status">
-                              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                            </select>
-                            <button className="text-xs font-semibold text-slate-700 underline" type="submit">Update</button>
-                          </form>
+                          <EventStatusForm eventId={event.id} organizationId={context.organization.id} status={event.status} />
                         ) : <span className="text-xs text-slate-500">View only</span>}
                       </td>
                     </tr>

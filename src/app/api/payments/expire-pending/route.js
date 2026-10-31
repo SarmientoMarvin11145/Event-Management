@@ -31,7 +31,7 @@ export async function POST(request) {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: orders, error } = await serviceClient
     .from("payment_transactions")
-    .select("id, checkout_session_id, registration_id")
+    .select("id, reference_number, checkout_session_id")
     .eq("status", "pending")
     .lt("created_at", cutoff)
     .order("created_at", { ascending: true })
@@ -61,31 +61,16 @@ export async function POST(request) {
       }
     }
 
-    const { data: updatedOrder, error: updateError } = await serviceClient
-      .from("payment_transactions")
-      .update({ status: "failed" })
-      .eq("id", order.id)
-      .eq("status", "pending")
-      .select("id")
-      .maybeSingle();
+    const { data: updatedOrder, error: updateError } = await serviceClient.rpc("set_paymongo_order_terminal_status", {
+      p_reference_number: order.reference_number,
+      p_checkout_session_id: order.checkout_session_id,
+      p_status: "expired",
+    });
     if (updateError) {
       console.error("Unable to mark expired PayMongo order", updateError);
       return Response.json({ error: "Could not release an expired checkout order." }, { status: 500 });
     }
-    if (!updatedOrder) continue;
-
-    if (order.registration_id) {
-      const { error: registrationError } = await serviceClient
-        .from("registrations")
-        .update({ status: "cancelled" })
-        .eq("id", order.registration_id)
-        .eq("status", "pending");
-      if (registrationError) {
-        console.error("Unable to release expired ticket reservation", registrationError);
-        return Response.json({ error: "The expired order was closed but its ticket reservation could not be released." }, { status: 500 });
-      }
-    }
-    expiredCount += 1;
+    if (updatedOrder) expiredCount += 1;
   }
 
   return Response.json({ expired: expiredCount, stillActive: waitingCount });

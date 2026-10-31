@@ -78,14 +78,21 @@ applications. It also adds the public, limited-field certificate verification
 function. Row-level security restricts attendee records to their owner.
 
 The attendee workspace includes a data-backed dashboard, profile and settings
-forms, free-event registration and cancellation, tickets, event history and CSV
-export, certificates, favorites, notifications, support requests, and organizer
-applications. PayMongo test checkout can issue one ticket per attendee and event;
-seat selection and multi-ticket orders are not implemented. QR scanning, ticket PDFs and wallet passes,
-outbound notification delivery, organizer approval, direct messaging, and
-attendee-to-organizer certificate issuance require workflows or integrations
-that are not part of this preview. The app reports these limitations rather
-than presenting them as completed actions.
+forms, event registration, tickets, event history and CSV export, certificates,
+favorites, notifications, support requests, and organizer applications. Event
+registrations use the organizer-configured ticket plans, quantities, and
+optional venue seats. Paid registrations remain pending until the signed
+PayMongo webhook confirms payment. Events configured for manual approval remain
+pending after payment until an organizer approves them; individual QR tickets
+are issued only after all required payment and approval steps are complete.
+Organizers can confirm or cancel registrations and submit full PayMongo refunds
+for eligible verified payments. Tickets are visible only to their attendee and
+can be printed or saved as PDF from the browser. Organization admins and
+assigned check-in staff can scan tickets or enter their QR value; each ticket is
+validated and checked in once. Registration actions and refund results create
+in-app notifications. Wallet passes, outbound notification delivery, direct
+messaging, and attendee-to-organizer certificate issuance require separate
+workflows or integrations.
 
 ## PayMongo test checkout
 
@@ -96,6 +103,9 @@ to `.env.local` (never use a `NEXT_PUBLIC_` prefix for either secret):
 PAYMONGO_SECRET_KEY=sk_test_replace_with_your_test_secret
 PAYMONGO_WEBHOOK_SECRET=replace_with_your_webhook_signing_secret
 SUPABASE_SERVICE_ROLE_KEY=replace_with_your_rotated_server_secret
+CRON_SECRET=replace_with_a_long_random_secret
+# Optional; defaults to card,gcash,qrph. Add paymaya only when enabled for the account.
+PAYMONGO_PAYMENT_METHOD_TYPES=card,gcash,paymaya,qrph
 ```
 
 Get the PayMongo test secret from the PayMongo Dashboard's test mode and create
@@ -104,7 +114,11 @@ a webhook for `checkout_session.payment.paid` pointing to
 signing secret to `PAYMONGO_WEBHOOK_SECRET`. PayMongo must be able to reach the
 webhook over HTTPS; for local testing, use a secure public tunnel or a deployed
 test environment. Payment status is confirmed by the signed webhook, not by
-returning from the checkout page.
+returning from the checkout page. Checkout cancellation is verified server-side
+before its reservation is released. PayMongo Checkout Sessions do not expire
+automatically, so schedule an authenticated POST to `/api/payments/expire-pending`
+with `Authorization: Bearer <CRON_SECRET>` to expire abandoned sessions and
+release their reservations.
 
 Use a newly rotated Supabase service-role secret from the Supabase project API
 settings for `SUPABASE_SERVICE_ROLE_KEY`. This key bypasses row-level security
@@ -115,6 +129,16 @@ admin migrations, then apply
 `20261024230000_allow_paid_event_publishing.sql` to allow PHP-priced events to
 be published with PayMongo test checkout. Paid tickets are confirmed only after
 the payment webhook verifies the transaction.
+Apply `20261030240000_event_ticket_plans_and_registration_tickets.sql` after
+the event, registration, seating, and PayMongo migrations to add configurable
+ticket plans, capacity-safe orders, attendee contact snapshots, and QR tickets.
+Apply `20261031001000_admin_registration_refunds.sql` afterward to enable
+organizer approval/cancellation controls and verified PayMongo refunds. Then
+apply `20261031003000_registration_management_and_checkin.sql` to enable the
+Event Registrations admin page, registration history, refund reasons,
+individual QR ticket check-in, and registration notifications. The admin
+registration list and detail pages are available at `/admin/registrations`;
+staff can check in attendees at `/admin/check-in`.
 
 ## Superadmin console
 

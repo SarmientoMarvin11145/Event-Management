@@ -15,6 +15,7 @@ export const FEATURE_DEFINITIONS = [
   { key: "admin-overview", label: "Admin overview", description: "Organization admin overview dashboard.", scope: "admin", defaultEnabled: true },
   { key: "admin-events", label: "Admin event management", description: "Create and manage organization events.", scope: "admin", defaultEnabled: true },
   { key: "admin-attendees", label: "Admin attendees", description: "View and manage event attendees.", scope: "admin", defaultEnabled: true },
+  { key: "admin-registration-management", label: "Registration management", description: "Manage event registrations, ticket refunds, and event check-in.", scope: "admin", defaultEnabled: true },
   { key: "admin-staff", label: "Admin staff", description: "Manage organization staff access.", scope: "admin", defaultEnabled: true },
   { key: "admin-venues", label: "Admin venues", description: "Manage venues used by events.", scope: "admin", defaultEnabled: true },
   { key: "admin-reports", label: "Admin reports", description: "Attendance and event reports.", scope: "admin", defaultEnabled: true },
